@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Reservas Glamping</title>
+    <!-- Enlazamos la hoja de estilos -->
+    <link rel="stylesheet" href="css/estilos.css">
+    <style>
+        /* Estilos específicos para la página de inicio */
+        .hero {
+            text-align: center;
+            padding: 2rem;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            margin-bottom: 2rem;
+        }
+        
+        .hero h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+        }
+        
+        .hero p {
+            margin-bottom: 1.5rem;
+        }
+        
+        .categorias {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .categoria {
+            flex: 1;
+            min-width: 250px;
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        .categoria h3 {
+            color: #3498db;
+            margin-bottom: 1rem;
+        }
+        
+        .btn-acceso {
+            display: inline-block;
+            background-color: #3498db;
+            color: white;
+            padding: 0.6rem 1.2rem;
+            text-decoration: none;
+            border-radius: 3px;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+        
+        .btn-acceso:hover {
+            background-color: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <!-- Cabecera de la página -->
+    <header>
+        <h1>Sistema de Reservas Glamping</h1>
+        <nav>
+            <!-- Menú de navegación simple -->
+            <ul>
+                <li><a href="index.html" class="activo">Inicio</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
+                <li><a href="glampings.html">Glampings</a></li>
+                <li><a href="reservas.html">Reservas</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Contenido principal -->
+    <main>
+        <!-- Sección principal -->
+        <section class="hero">
+            <h2>Bienvenido al Sistema de Gestión de Reservas Glamping</h2>
+            <p>Este sistema te permite gestionar clientes, alojamientos tipo glamping y reservas de manera sencilla.</p>
+            <p>Selecciona una de las siguientes categorías para comenzar:</p>
+        </section>
+
+        <!-- Categorías principales -->
+        <div class="categorias">
+            <div class="categoria">
+                <h3>Clientes</h3>
+                <p>Gestiona la información de tus clientes. Añade nuevos, edita sus datos o elimina registros.</p>
+                <a href="clientes.html" class="btn-acceso">Gestionar Clientes</a>
+            </div>
+            
+            <div class="categoria">
+                <h3>Glampings</h3>
+                <p>Administra tus alojamientos tipo glamping. Establece precios, características y disponibilidad.</p>
+                <a href="glampings.html" class="btn-acceso">Gestionar Glampings</a>
+            </div>
+            
+            <div class="categoria">
+                <h3>Reservas</h3>
+                <p>Controla las reservas de tus clientes. Crea nuevas, actualiza estados y gestiona fechas.</p>
+                <a href="reservas.html" class="btn-acceso">Gestionar Reservas</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Pie de página -->
+    <footer>
+        <p>Sistema de Gestión de Reservas Glamping &copy; 2023</p>
+    </footer>
+</body>
+</html> 

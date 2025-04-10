@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Glampings - Sistema de Reservas Glamping</title>
+    <!-- Enlazamos la hoja de estilos -->
+    <link rel="stylesheet" href="css/estilos.css">
+    <!-- Estilos específicos para glampings -->
+    <style>
+        /* Estilo específico para las características (tags) */
+        .caracteristicas-container {
+            margin-bottom: 1rem;
+        }
+        
+        .caracteristica-tag {
+            display: inline-block;
+            background-color: #e0f7fa;
+            color: #0097a7;
+            padding: 0.3rem 0.6rem;
+            margin: 0.2rem;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        
+        /* Estilo para el campo de características */
+        #glamping-caracteristicas {
+            height: 5rem;
+        }
+        
+        /* Estilo para la tabla de glampings */
+        .disponible {
+            color: #27ae60;
+            font-weight: bold;
+        }
+        
+        .no-disponible {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        /* Estilo para las imágenes de glamping en miniatura */
+        .img-glamping {
+            width: 80px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Cabecera de la página -->
+    <header>
+        <h1>Sistema de Reservas Glamping</h1>
+        <nav>
+            <!-- Menú de navegación simple -->
+            <ul>
+                <li><a href="index.html">Inicio</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
+                <li><a href="glampings.html" class="activo">Glampings</a></li>
+                <li><a href="reservas.html">Reservas</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Contenido principal -->
+    <main>
+        <h2>Gestión de Glampings</h2>
+
+        <!-- Sección para añadir o editar glampings -->
+        <section id="formulario-glamping">
+            <h3>Añadir/Editar Glamping</h3>
+            <form id="form-glamping">
+                <!-- Campo oculto para el ID (se usa en edición) -->
+                <input type="hidden" id="glamping-id">
+
+                <div class="campo-formulario">
+                    <label for="glamping-nombre">Nombre:</label>
+                    <input type="text" id="glamping-nombre" required>
+                </div>
+
+                <div class="campo-formulario">
+                    <label for="glamping-capacidad">Capacidad (personas):</label>
+                    <input type="number" id="glamping-capacidad" min="1" required>
+                </div>
+
+                <div class="campo-formulario">
+                    <label for="glamping-precio">Precio por noche:</label>
+                    <input type="number" id="glamping-precio" min="0" required>
+                </div>
+
+                <div class="campo-formulario">
+                    <label for="glamping-caracteristicas">Características (una por línea):</label>
+                    <textarea id="glamping-caracteristicas" required></textarea>
+                </div>
+
+                <div class="campo-formulario">
+                    <label for="glamping-disponible">Disponibilidad:</label>
+                    <select id="glamping-disponible" required>
+                        <option value="true">Disponible</option>
+                        <option value="false">No disponible</option>
+                    </select>
+                </div>
+
+                <div class="botones-formulario">
+                    <button type="submit" id="btn-guardar">Guardar Glamping</button>
+                    <button type="button" id="btn-cancelar">Cancelar</button>
+                </div>
+            </form>
+        </section>
+
+        <!-- Sección para mostrar la lista de glampings -->
+        <section id="lista-glampings">
+            <h3>Lista de Glampings</h3>
+            <button id="btn-nuevo-glamping">Nuevo Glamping</button>
+            
+            <!-- Tabla para mostrar los glampings -->
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre</th>
+                        <th>Capacidad</th>
+                        <th>Precio/Noche</th>
+                        <th>Características</th>
+                        <th>Disponibilidad</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody id="tabla-glampings">
+                    <!-- Aquí se cargarán dinámicamente los glampings con JavaScript -->
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- Pie de página -->
+    <footer>
+        <p>Sistema de Gestión de Reservas Glamping &copy; 2023</p>
+    </footer>
+
+    <!-- Enlazamos el script de JavaScript -->
+    <script src="js/glampings.js"></script>
+</body>
+</html> 
