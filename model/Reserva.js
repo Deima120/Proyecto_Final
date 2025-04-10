@@ -5,17 +5,17 @@ class Reserva {
     /**
      * Constructor de la clase Reserva
      * @param {number} id - Identificador único de la reserva
-     * @param {number} clienteId - ID del cliente que realiza la reserva
-     * @param {number} glampingId - ID del glamping reservado
+     * @param {Cliente} cliente - Cliente que realiza la reserva
+     * @param {Glamping} glamping - Glamping reservado
      * @param {string} fechaInicio - Fecha de inicio de la reserva (formato YYYY-MM-DD)
      * @param {string} fechaFin - Fecha de fin de la reserva (formato YYYY-MM-DD)
      * @param {number} totalPagado - Monto total pagado por la reserva
      * @param {string} estado - Estado de la reserva (confirmada, pendiente, cancelada)
      */
-    constructor(id, clienteId, glampingId, fechaInicio, fechaFin, totalPagado, estado) {
+    constructor(id, cliente, glamping, fechaInicio, fechaFin, totalPagado, estado) {
         this.id = id;
-        this.clienteId = clienteId;
-        this.glampingId = glampingId;
+        this.cliente = cliente;
+        this.glamping = glamping;
         this.fechaInicio = fechaInicio;
         this.fechaFin = fechaFin;
         this.totalPagado = totalPagado;
@@ -39,35 +39,51 @@ class Reserva {
     }
 
     /**
-     * Obtiene el id del cliente
-     * @returns {number} El id del cliente
+     * Obtiene el cliente de la reserva
+     * @returns {Cliente} El cliente de la reserva
+     */
+    getCliente() {
+        return this.cliente;
+    }
+
+    /**
+     * Establece el cliente de la reserva
+     * @param {Cliente} cliente - El nuevo cliente de la reserva
+     */
+    setCliente(cliente) {
+        this.cliente = cliente;
+    }
+
+    /**
+     * Obtiene el glamping de la reserva
+     * @returns {Glamping} El glamping de la reserva
+     */
+    getGlamping() {
+        return this.glamping;
+    }
+
+    /**
+     * Establece el glamping de la reserva
+     * @param {Glamping} glamping - El nuevo glamping de la reserva
+     */
+    setGlamping(glamping) {
+        this.glamping = glamping;
+    }
+
+    /**
+     * Obtiene el ID del cliente (método de compatibilidad)
+     * @returns {number} El ID del cliente
      */
     getClienteId() {
-        return this.clienteId;
+        return this.cliente.getId();
     }
 
     /**
-     * Establece el id del cliente
-     * @param {number} clienteId - El nuevo id del cliente
-     */
-    setClienteId(clienteId) {
-        this.clienteId = clienteId;
-    }
-
-    /**
-     * Obtiene el id del glamping
-     * @returns {number} El id del glamping
+     * Obtiene el ID del glamping (método de compatibilidad)
+     * @returns {number} El ID del glamping
      */
     getGlampingId() {
-        return this.glampingId;
-    }
-
-    /**
-     * Establece el id del glamping
-     * @param {number} glampingId - El nuevo id del glamping
-     */
-    setGlampingId(glampingId) {
-        this.glampingId = glampingId;
+        return this.glamping.getId();
     }
 
     /**
@@ -147,14 +163,23 @@ class Reserva {
     }
 
     /**
+     * Calcula el precio total de la reserva según la duración y el precio del glamping
+     * @returns {number} El precio total de la reserva
+     */
+    calcularPrecioTotal() {
+        const duracion = this.calcularDuracion();
+        return duracion * this.glamping.getPrecioPorNoche();
+    }
+
+    /**
      * Convierte los datos de la reserva a formato JSON
      * @returns {Object} Objeto con los datos de la reserva
      */
     toJSON() {
         return {
             id: this.id,
-            clienteId: this.clienteId,
-            glampingId: this.glampingId,
+            clienteId: this.cliente.getId(),
+            glampingId: this.glamping.getId(),
             fechaInicio: this.fechaInicio,
             fechaFin: this.fechaFin,
             totalPagado: this.totalPagado,
@@ -217,6 +242,8 @@ class Reserva {
     static obtenerReservas() {
         const fs = require('fs');
         const path = require('path');
+        const Cliente = require('./Cliente');
+        const Glamping = require('./Glamping');
         
         try {
             // Ruta al archivo JSON de reservas
@@ -237,19 +264,33 @@ class Reserva {
             // Crear un array para almacenar los objetos Reserva
             const reservas = [];
             
+            // Cargar todos los clientes y glampings para hacer las relaciones
+            const clientes = Cliente.obtenerClientes();
+            const glampings = Glamping.obtenerGlampings();
+            
             // Recorrer cada objeto JSON y convertirlo a un objeto Reserva
             for (let i = 0; i < reservasJson.length; i++) {
                 const reservaJson = reservasJson[i];
-                const reserva = new Reserva(
-                    reservaJson.id,
-                    reservaJson.clienteId,
-                    reservaJson.glampingId,
-                    reservaJson.fechaInicio,
-                    reservaJson.fechaFin,
-                    reservaJson.totalPagado,
-                    reservaJson.estado
-                );
-                reservas.push(reserva);
+                
+                // Buscar el cliente correspondiente
+                const cliente = clientes.find(c => c.getId() === reservaJson.clienteId);
+                
+                // Buscar el glamping correspondiente
+                const glamping = glampings.find(g => g.getId() === reservaJson.glampingId);
+                
+                // Si se encuentran tanto el cliente como el glamping, crear la reserva
+                if (cliente && glamping) {
+                    const reserva = new Reserva(
+                        reservaJson.id,
+                        cliente,
+                        glamping,
+                        reservaJson.fechaInicio,
+                        reservaJson.fechaFin,
+                        reservaJson.totalPagado,
+                        reservaJson.estado
+                    );
+                    reservas.push(reserva);
+                }
             }
             
             return reservas;
@@ -280,12 +321,15 @@ class Reserva {
 
     /**
      * Obtiene las reservas de un cliente específico
-     * @param {number} clienteId - ID del cliente
+     * @param {Cliente|number} cliente - Cliente o ID del cliente
      * @returns {Array} Array de objetos Reserva del cliente
      */
-    static obtenerReservasPorCliente(clienteId) {
+    static obtenerReservasPorCliente(cliente) {
         const reservas = Reserva.obtenerReservas();
         const reservasCliente = [];
+        
+        // Determinar el ID del cliente (puede recibir un objeto Cliente o un ID)
+        const clienteId = typeof cliente === 'object' ? cliente.getId() : cliente;
         
         // Recorrer el array de reservas para encontrar las del cliente
         for (let i = 0; i < reservas.length; i++) {
@@ -299,12 +343,15 @@ class Reserva {
 
     /**
      * Obtiene las reservas de un glamping específico
-     * @param {number} glampingId - ID del glamping
+     * @param {Glamping|number} glamping - Glamping o ID del glamping
      * @returns {Array} Array de objetos Reserva del glamping
      */
-    static obtenerReservasPorGlamping(glampingId) {
+    static obtenerReservasPorGlamping(glamping) {
         const reservas = Reserva.obtenerReservas();
         const reservasGlamping = [];
+        
+        // Determinar el ID del glamping (puede recibir un objeto Glamping o un ID)
+        const glampingId = typeof glamping === 'object' ? glamping.getId() : glamping;
         
         // Recorrer el array de reservas para encontrar las del glamping
         for (let i = 0; i < reservas.length; i++) {
@@ -322,10 +369,24 @@ class Reserva {
      * @returns {Reserva} Una nueva instancia de Reserva
      */
     static fromJSON(json) {
+        const Cliente = require('./Cliente');
+        const Glamping = require('./Glamping');
+        
+        // Obtener el cliente
+        const cliente = Cliente.obtenerClientes().find(c => c.getId() === json.clienteId);
+        
+        // Obtener el glamping
+        const glamping = Glamping.obtenerGlampings().find(g => g.getId() === json.glampingId);
+        
+        // Verificar que se encontraron tanto el cliente como el glamping
+        if (!cliente || !glamping) {
+            throw new Error('No se pudo encontrar el cliente o el glamping');
+        }
+        
         return new Reserva(
             json.id,
-            json.clienteId,
-            json.glampingId,
+            cliente,
+            glamping,
             json.fechaInicio,
             json.fechaFin,
             json.totalPagado,
