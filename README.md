@@ -8,7 +8,8 @@ El proyecto utiliza únicamente HTML, CSS y JavaScript puro (vanilla), sin frame
 
 ## Estructura del Proyecto
 
-El proyecto está organizado en tres carpetas principales: 
+El proyecto está organizado en tres carpetas principales:
+
 Sistema-Glamping/
 ├── data/ # Almacena los archivos JSON con los datos
 │ ├── clientes.json # Información de los clientes
