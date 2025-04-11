@@ -1,308 +1,225 @@
-// Este archivo contiene la lógica para la gestión de clientes
-
-// Esperamos a que el DOM esté completamente cargado
+/**
+ * Script para la gestión de clientes integrado con el controlador
+ */
 document.addEventListener('DOMContentLoaded', function() {
-    // Obtenemos referencias a los elementos del DOM que vamos a utilizar
+    // Elementos del DOM
     const formCliente = document.getElementById('form-cliente');
-    const tablaClientes = document.getElementById('tabla-clientes');
-    const btnNuevoCliente = document.getElementById('btn-nuevo-cliente');
-    const btnCancelar = document.getElementById('btn-cancelar');
-    
-    // Campos del formulario
     const clienteId = document.getElementById('cliente-id');
-    const clienteNombre = document.getElementById('cliente-nombre');
-    const clienteEmail = document.getElementById('cliente-email');
-    const clienteTelefono = document.getElementById('cliente-telefono');
-    const clienteDocumento = document.getElementById('cliente-documento');
+    const nombreInput = document.getElementById('nombre');
+    const emailInput = document.getElementById('email');
+    const telefonoInput = document.getElementById('telefono');
+    const documentoInput = document.getElementById('documento');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+    const tablaClientes = document.getElementById('tabla-clientes').querySelector('tbody');
+    const modal = document.getElementById('modal-confirmar');
+    const btnConfirmarEliminar = document.getElementById('btn-confirmar-eliminar');
+    const alertsContainer = document.getElementById('alerts-container');
     
-    // Por defecto, ocultamos el formulario
-    formCliente.style.display = 'none';
+    let clienteIdEliminar = null;
     
-    // Cargamos los clientes al iniciar la página
+    // Instanciar el controlador de clientes
+    const clienteController = new ClienteController();
+
+    // Cargar clientes al iniciar
     cargarClientes();
-    
-    // Evento para mostrar el formulario al hacer clic en "Nuevo Cliente"
-    btnNuevoCliente.addEventListener('click', function() {
-        // Limpiamos el formulario
-        limpiarFormulario();
-        // Mostramos el formulario
-        formCliente.style.display = 'block';
-    });
-    
-    // Evento para ocultar el formulario al hacer clic en "Cancelar"
-    btnCancelar.addEventListener('click', function() {
-        formCliente.style.display = 'none';
-    });
-    
-    // Evento para guardar un cliente al enviar el formulario
+
+    // Evento para guardar o actualizar cliente
     formCliente.addEventListener('submit', function(e) {
-        // Prevenimos el comportamiento por defecto del formulario
         e.preventDefault();
         
-        // Obtenemos los valores del formulario
-        const cliente = {
-            nombre: clienteNombre.value,
-            email: clienteEmail.value,
-            telefono: clienteTelefono.value,
-            documento: clienteDocumento.value
+        const datosCliente = {
+            nombre: nombreInput.value,
+            email: emailInput.value,
+            telefono: telefonoInput.value,
+            documento: documentoInput.value
         };
         
-        // Si hay un ID, significa que estamos editando un cliente existente
-        if (clienteId.value) {
-            cliente.id = parseInt(clienteId.value);
-            actualizarCliente(cliente);
-        } else {
-            // Si no hay ID, estamos creando un nuevo cliente
-            crearCliente(cliente);
+        try {
+            // Validar datos
+            const errores = clienteController.validar(datosCliente);
+            if (Object.keys(errores).length > 0) {
+                mostrarErrores(errores);
+                return;
+            }
+            
+            if (clienteId.value) {
+                // Actualizar cliente existente
+                const clienteActualizado = clienteController.actualizar(parseInt(clienteId.value), datosCliente);
+                if (clienteActualizado) {
+                    mostrarAlerta('Cliente actualizado con éxito', 'success');
+                    resetearFormulario();
+                    cargarClientes();
+                } else {
+                    mostrarAlerta('No se encontró el cliente a actualizar', 'danger');
+                }
+            } else {
+                // Crear nuevo cliente
+                clienteController.crear(datosCliente);
+                mostrarAlerta('Cliente creado con éxito', 'success');
+                resetearFormulario();
+                cargarClientes();
+            }
+        } catch (error) {
+            mostrarAlerta('Error: ' + error.message, 'danger');
         }
-        
-        // Ocultamos el formulario
-        formCliente.style.display = 'none';
     });
-    
-    // Función para cargar los clientes desde el archivo JSON
+
+    // Evento para cancelar edición
+    btnCancelar.addEventListener('click', resetearFormulario);
+
+    // Cerrar modal cuando se hace clic en el botón de cerrar o fuera del modal
+    document.querySelectorAll('.close-modal').forEach(button => {
+        button.addEventListener('click', () => {
+            modal.style.display = 'none';
+        });
+    });
+
+    // Confirmar eliminación
+    btnConfirmarEliminar.addEventListener('click', function() {
+        if (clienteIdEliminar) {
+            eliminarCliente(clienteIdEliminar);
+            modal.style.display = 'none';
+            clienteIdEliminar = null;
+        }
+    });
+
+    /**
+     * Carga la lista de clientes desde el controlador
+     */
     function cargarClientes() {
-        // Utilizamos fetch para obtener los datos del archivo JSON
-        fetch('../data/clientes.json')
-            .then(response => {
-                // Verificamos si la respuesta es correcta
-                if (!response.ok) {
-                    throw new Error('Error al cargar los clientes');
-                }
-                return response.json();
-            })
-            .then(clientes => {
-                // Limpiamos la tabla
-                tablaClientes.innerHTML = '';
-                
-                // Recorremos el array de clientes
-                for (let i = 0; i < clientes.length; i++) {
-                    const cliente = clientes[i];
-                    
-                    // Creamos una fila para cada cliente
-                    const fila = document.createElement('tr');
-                    
-                    // Agregamos las celdas con los datos del cliente
-                    fila.innerHTML = `
-                        <td>${cliente.id}</td>
-                        <td>${cliente.nombre}</td>
-                        <td>${cliente.email}</td>
-                        <td>${cliente.telefono}</td>
-                        <td>${cliente.documento}</td>
-                        <td>
-                            <button class="btn-editar" data-id="${cliente.id}">Editar</button>
-                            <button class="btn-eliminar" data-id="${cliente.id}">Eliminar</button>
-                        </td>
-                    `;
-                    
-                    // Añadimos la fila a la tabla
-                    tablaClientes.appendChild(fila);
-                }
-                
-                // Agregamos eventos a los botones de editar y eliminar
-                agregarEventosBotones();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cargar los clientes. Por favor, inténtalo de nuevo.');
-            });
+        const clientes = clienteController.obtenerTodos();
+        renderizarClientes(clientes);
     }
-    
-    // Función para agregar eventos a los botones de editar y eliminar
-    function agregarEventosBotones() {
-        // Botones de editar
-        const botonesEditar = document.querySelectorAll('.btn-editar');
-        for (let i = 0; i < botonesEditar.length; i++) {
-            botonesEditar[i].addEventListener('click', function() {
+
+    /**
+     * Renderiza la lista de clientes en la tabla
+     * @param {Array} clientes - Lista de clientes a mostrar
+     */
+    function renderizarClientes(clientes) {
+        tablaClientes.innerHTML = '';
+        
+        clientes.forEach(cliente => {
+            const fila = document.createElement('tr');
+            
+            fila.innerHTML = `
+                <td>${cliente.getId()}</td>
+                <td>${cliente.getNombre()}</td>
+                <td>${cliente.getEmail()}</td>
+                <td>${cliente.getTelefono()}</td>
+                <td>${cliente.getDocumento()}</td>
+                <td class="action-buttons">
+                    <button class="btn-editar" data-id="${cliente.getId()}">Editar</button>
+                    <button class="btn-eliminar danger" data-id="${cliente.getId()}">Eliminar</button>
+                </td>
+            `;
+            
+            tablaClientes.appendChild(fila);
+        });
+        
+        // Agregar eventos a los botones de editar y eliminar
+        document.querySelectorAll('.btn-editar').forEach(button => {
+            button.addEventListener('click', function() {
                 const id = parseInt(this.getAttribute('data-id'));
-                editarCliente(id);
+                cargarClienteParaEditar(id);
             });
+        });
+        
+        document.querySelectorAll('.btn-eliminar').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                confirmarEliminar(id);
+            });
+        });
+    }
+
+    /**
+     * Carga los datos de un cliente para editar
+     * @param {number} id - ID del cliente a editar
+     */
+    function cargarClienteParaEditar(id) {
+        const cliente = clienteController.buscarPorId(id);
+        
+        if (cliente) {
+            clienteId.value = cliente.getId();
+            nombreInput.value = cliente.getNombre();
+            emailInput.value = cliente.getEmail();
+            telefonoInput.value = cliente.getTelefono();
+            documentoInput.value = cliente.getDocumento();
+            
+            btnGuardar.textContent = 'Actualizar';
+            btnCancelar.style.display = 'inline-block';
+        } else {
+            mostrarAlerta('No se encontró el cliente seleccionado', 'danger');
+        }
+    }
+
+    /**
+     * Muestra el modal de confirmación para eliminar un cliente
+     * @param {number} id - ID del cliente a eliminar
+     */
+    function confirmarEliminar(id) {
+        clienteIdEliminar = id;
+        modal.style.display = 'flex';
+    }
+
+    /**
+     * Elimina un cliente
+     * @param {number} id - ID del cliente a eliminar
+     */
+    function eliminarCliente(id) {
+        const resultado = clienteController.eliminar(id);
+        
+        if (resultado) {
+            mostrarAlerta('Cliente eliminado con éxito', 'success');
+            cargarClientes();
+        } else {
+            mostrarAlerta('No se pudo eliminar el cliente', 'danger');
+        }
+    }
+
+    /**
+     * Resetea el formulario a su estado inicial
+     */
+    function resetearFormulario() {
+        formCliente.reset();
+        clienteId.value = '';
+        btnGuardar.textContent = 'Guardar';
+        btnCancelar.style.display = 'none';
+    }
+
+    /**
+     * Muestra los errores de validación
+     * @param {Object} errores - Objeto con los errores
+     */
+    function mostrarErrores(errores) {
+        let mensaje = 'Por favor corrija los siguientes errores:<ul>';
+        
+        for (const campo in errores) {
+            mensaje += `<li>${errores[campo]}</li>`;
         }
         
-        // Botones de eliminar
-        const botonesEliminar = document.querySelectorAll('.btn-eliminar');
-        for (let i = 0; i < botonesEliminar.length; i++) {
-            botonesEliminar[i].addEventListener('click', function() {
-                const id = parseInt(this.getAttribute('data-id'));
-                if (confirm('¿Estás seguro de que deseas eliminar este cliente?')) {
-                    eliminarCliente(id);
-                }
-            });
-        }
+        mensaje += '</ul>';
+        
+        mostrarAlerta(mensaje, 'danger');
     }
-    
-    // Función para editar un cliente
-    function editarCliente(id) {
-        // Obtenemos los datos del cliente
-        fetch('../data/clientes.json')
-            .then(response => response.json())
-            .then(clientes => {
-                // Buscamos el cliente por su ID
-                let clienteEncontrado = null;
-                for (let i = 0; i < clientes.length; i++) {
-                    if (clientes[i].id === id) {
-                        clienteEncontrado = clientes[i];
-                        break;
-                    }
-                }
-                
-                if (clienteEncontrado) {
-                    // Rellenamos el formulario con los datos del cliente
-                    clienteId.value = clienteEncontrado.id;
-                    clienteNombre.value = clienteEncontrado.nombre;
-                    clienteEmail.value = clienteEncontrado.email;
-                    clienteTelefono.value = clienteEncontrado.telefono;
-                    clienteDocumento.value = clienteEncontrado.documento;
-                    
-                    // Mostramos el formulario
-                    formCliente.style.display = 'block';
-                } else {
-                    alert('Cliente no encontrado');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos del cliente');
-            });
-    }
-    
-    // Función para crear un nuevo cliente
-    function crearCliente(cliente) {
-        // En un entorno real, aquí haríamos una solicitud POST a un servidor
-        // Para este ejemplo, simulamos el proceso modificando el archivo JSON local
 
-        // Primero, obtenemos todos los clientes actuales
-        fetch('../data/clientes.json')
-            .then(response => response.json())
-            .then(clientes => {
-                // Generamos un nuevo ID (el máximo + 1)
-                let maxId = 0;
-                for (let i = 0; i < clientes.length; i++) {
-                    if (clientes[i].id > maxId) {
-                        maxId = clientes[i].id;
-                    }
-                }
-                cliente.id = maxId + 1;
-                
-                // Agregamos el nuevo cliente al array
-                clientes.push(cliente);
-                
-                // Simulamos la actualización del archivo (en un entorno real, esto se haría en el servidor)
-                simularGuardadoArchivo(clientes)
-                    .then(() => {
-                        // Recargamos la lista de clientes
-                        cargarClientes();
-                        alert('Cliente creado correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al crear el cliente');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para crear el cliente');
-            });
-    }
-    
-    // Función para actualizar un cliente existente
-    function actualizarCliente(clienteActualizado) {
-        // Obtenemos todos los clientes actuales
-        fetch('../data/clientes.json')
-            .then(response => response.json())
-            .then(clientes => {
-                // Buscamos el índice del cliente a actualizar
-                let indice = -1;
-                for (let i = 0; i < clientes.length; i++) {
-                    if (clientes[i].id === clienteActualizado.id) {
-                        indice = i;
-                        break;
-                    }
-                }
-                
-                if (indice !== -1) {
-                    // Actualizamos el cliente en el array
-                    clientes[indice] = clienteActualizado;
-                    
-                    // Simulamos la actualización del archivo
-                    simularGuardadoArchivo(clientes)
-                        .then(() => {
-                            // Recargamos la lista de clientes
-                            cargarClientes();
-                            alert('Cliente actualizado correctamente');
-                        })
-                        .catch(() => {
-                            alert('Error al actualizar el cliente');
-                        });
-                } else {
-                    alert('Cliente no encontrado');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para actualizar el cliente');
-            });
-    }
-    
-    // Función para eliminar un cliente
-    function eliminarCliente(id) {
-        // Obtenemos todos los clientes actuales
-        fetch('../data/clientes.json')
-            .then(response => response.json())
-            .then(clientes => {
-                // Filtramos el array para eliminar el cliente
-                const clientesFiltrados = [];
-                for (let i = 0; i < clientes.length; i++) {
-                    if (clientes[i].id !== id) {
-                        clientesFiltrados.push(clientes[i]);
-                    }
-                }
-                
-                // Simulamos la actualización del archivo
-                simularGuardadoArchivo(clientesFiltrados)
-                    .then(() => {
-                        // Recargamos la lista de clientes
-                        cargarClientes();
-                        alert('Cliente eliminado correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al eliminar el cliente');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para eliminar el cliente');
-            });
-    }
-    
-    // Función para limpiar el formulario
-    function limpiarFormulario() {
-        clienteId.value = '';
-        clienteNombre.value = '';
-        clienteEmail.value = '';
-        clienteTelefono.value = '';
-        clienteDocumento.value = '';
-    }
-    
-    // Función que simula el guardado del archivo JSON
-    // En un entorno real, esto sería una solicitud al servidor
-    function simularGuardadoArchivo(datos) {
-        return new Promise((resolve, reject) => {
-            // Simulamos una operación asíncrona
-            setTimeout(() => {
-                try {
-                    // En un entorno real, aquí se haría una solicitud al servidor
-                    // Para este ejemplo, simplemente mostramos los datos en la consola
-                    console.log('Datos a guardar:', datos);
-                    
-                    // En un entorno de backend real, aquí se escribiría el archivo
-                    // Pero en el navegador no podemos escribir archivos directamente
-                    // Para este ejemplo, asumimos que el guardado fue exitoso
-                    resolve();
-                } catch (error) {
-                    console.error('Error al simular guardado:', error);
-                    reject(error);
-                }
-            }, 500); // Simulamos un retraso de medio segundo
-        });
+    /**
+     * Muestra un mensaje de alerta
+     * @param {string} mensaje - Mensaje a mostrar
+     * @param {string} tipo - Tipo de alerta (success, danger, warning)
+     */
+    function mostrarAlerta(mensaje, tipo) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${tipo}`;
+        alert.innerHTML = mensaje;
+        
+        alertsContainer.innerHTML = '';
+        alertsContainer.appendChild(alert);
+        
+        // Auto-ocultar después de 3 segundos
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
     }
 }); 

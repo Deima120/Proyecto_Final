@@ -188,27 +188,17 @@ class Reserva {
     }
 
     /**
-     * Guarda la reserva actual en el archivo reservas.json
+     * Guarda la reserva actual en el almacenamiento local (localStorage)
      * @returns {boolean} true si la reserva se guardó correctamente, false en caso contrario
      */
     guardar() {
-        const fs = require('fs');
-        const path = require('path');
-        
         try {
-            // Ruta al archivo JSON de reservas
-            const rutaArchivo = path.join(__dirname, '../data/reservas.json');
-            
-            // Leer el contenido actual del archivo
-            let reservas = [];
-            if (fs.existsSync(rutaArchivo)) {
-                const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-                reservas = JSON.parse(contenido);
-            }
+            // Leer reservas del localStorage
+            let reservas = Reserva.obtenerReservas();
             
             // Obtener el ID más alto para asignar uno nuevo si es necesario
             const maxId = reservas.reduce((max, reserva) => 
-                reserva.id > max ? reserva.id : max, 0);
+                reserva.getId() > max ? reserva.getId() : max, 0);
             
             // Si la reserva no tiene ID, asignarle uno nuevo
             if (!this.id) {
@@ -216,18 +206,21 @@ class Reserva {
             }
             
             // Verificar si la reserva ya existe para actualizarla
-            const index = reservas.findIndex(r => r.id === this.id);
+            const index = reservas.findIndex(r => r.getId() === this.id);
             
             if (index !== -1) {
                 // Actualizar reserva existente
-                reservas[index] = this.toJSON();
+                reservas[index] = this;
             } else {
                 // Agregar nueva reserva
-                reservas.push(this.toJSON());
+                reservas.push(this);
             }
             
-            // Guardar el archivo actualizado
-            fs.writeFileSync(rutaArchivo, JSON.stringify(reservas, null, 2), 'utf8');
+            // Convertir las reservas a formato JSON
+            const reservasJSON = reservas.map(reserva => reserva.toJSON());
+            
+            // Guardar en localStorage
+            localStorage.setItem('reservas', JSON.stringify(reservasJSON));
             return true;
         } catch (error) {
             console.error('Error al guardar la reserva:', error);
@@ -236,32 +229,20 @@ class Reserva {
     }
 
     /**
-     * Obtiene todas las reservas del archivo reservas.json
+     * Obtiene todas las reservas del almacenamiento local (localStorage)
      * @returns {Array} Array de objetos Reserva
      */
     static obtenerReservas() {
-        const fs = require('fs');
-        const path = require('path');
-        const Cliente = require('./Cliente');
-        const Glamping = require('./Glamping');
-        
         try {
-            // Ruta al archivo JSON de reservas
-            const rutaArchivo = path.join(__dirname, '../data/reservas.json');
+            // Obtener datos del localStorage
+            const reservasJSON = localStorage.getItem('reservas');
             
-            // Verificar si el archivo existe
-            if (!fs.existsSync(rutaArchivo)) {
-                console.error('El archivo de reservas no existe');
+            if (!reservasJSON) {
                 return [];
             }
             
-            // Leer el contenido del archivo
-            const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-            
-            // Convertir el contenido a un array de objetos JSON
-            const reservasJson = JSON.parse(contenido);
-            
-            // Crear un array para almacenar los objetos Reserva
+            // Convertir datos JSON a objetos Reserva
+            const reservasData = JSON.parse(reservasJSON);
             const reservas = [];
             
             // Cargar todos los clientes y glampings para hacer las relaciones
@@ -269,25 +250,25 @@ class Reserva {
             const glampings = Glamping.obtenerGlampings();
             
             // Recorrer cada objeto JSON y convertirlo a un objeto Reserva
-            for (let i = 0; i < reservasJson.length; i++) {
-                const reservaJson = reservasJson[i];
+            for (let i = 0; i < reservasData.length; i++) {
+                const reservaJSON = reservasData[i];
                 
                 // Buscar el cliente correspondiente
-                const cliente = clientes.find(c => c.getId() === reservaJson.clienteId);
+                const cliente = clientes.find(c => c.getId() === reservaJSON.clienteId);
                 
                 // Buscar el glamping correspondiente
-                const glamping = glampings.find(g => g.getId() === reservaJson.glampingId);
+                const glamping = glampings.find(g => g.getId() === reservaJSON.glampingId);
                 
                 // Si se encuentran tanto el cliente como el glamping, crear la reserva
                 if (cliente && glamping) {
                     const reserva = new Reserva(
-                        reservaJson.id,
+                        reservaJSON.id,
                         cliente,
                         glamping,
-                        reservaJson.fechaInicio,
-                        reservaJson.fechaFin,
-                        reservaJson.totalPagado,
-                        reservaJson.estado
+                        reservaJSON.fechaInicio,
+                        reservaJSON.fechaFin,
+                        reservaJSON.totalPagado,
+                        reservaJSON.estado
                     );
                     reservas.push(reserva);
                 }
@@ -369,9 +350,6 @@ class Reserva {
      * @returns {Reserva} Una nueva instancia de Reserva
      */
     static fromJSON(json) {
-        const Cliente = require('./Cliente');
-        const Glamping = require('./Glamping');
-        
         // Obtener el cliente
         const cliente = Cliente.obtenerClientes().find(c => c.getId() === json.clienteId);
         
@@ -393,7 +371,4 @@ class Reserva {
             json.estado
         );
     }
-}
-
-// Exportamos la clase para poder usarla en otros archivos
-module.exports = Reserva; 
+} 

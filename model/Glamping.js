@@ -6,18 +6,18 @@ class Glamping {
      * Constructor de la clase Glamping
      * @param {number} id - Identificador único del glamping
      * @param {string} nombre - Nombre del glamping
-     * @param {number} capacidad - Cantidad de personas que pueden alojarse
+     * @param {number} capacidad - Capacidad del glamping (número de personas)
      * @param {number} precioPorNoche - Precio por noche del glamping
-     * @param {Array} caracteristicas - Lista de características del glamping
-     * @param {boolean} disponible - Indica si el glamping está disponible
+     * @param {Array} caracteristicas - Características del glamping (comodidades, servicios, etc.)
+     * @param {boolean} disponible - Indica si el glamping está disponible para reservar
      */
     constructor(id, nombre, capacidad, precioPorNoche, caracteristicas, disponible) {
         this.id = id;
         this.nombre = nombre;
         this.capacidad = capacidad;
         this.precioPorNoche = precioPorNoche;
-        this.caracteristicas = caracteristicas;
-        this.disponible = disponible;
+        this.caracteristicas = caracteristicas || [];
+        this.disponible = disponible !== undefined ? disponible : true;
     }
 
     /**
@@ -132,27 +132,17 @@ class Glamping {
     }
 
     /**
-     * Guarda el glamping actual en el archivo glampings.json
+     * Guarda el glamping actual en el almacenamiento local (localStorage)
      * @returns {boolean} true si el glamping se guardó correctamente, false en caso contrario
      */
     guardar() {
-        const fs = require('fs');
-        const path = require('path');
-        
         try {
-            // Ruta al archivo JSON de glampings
-            const rutaArchivo = path.join(__dirname, '../data/glampings.json');
-            
-            // Leer el contenido actual del archivo
-            let glampings = [];
-            if (fs.existsSync(rutaArchivo)) {
-                const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-                glampings = JSON.parse(contenido);
-            }
+            // Leer glampings del localStorage
+            let glampings = Glamping.obtenerGlampings();
             
             // Obtener el ID más alto para asignar uno nuevo si es necesario
             const maxId = glampings.reduce((max, glamping) => 
-                glamping.id > max ? glamping.id : max, 0);
+                glamping.getId() > max ? glamping.getId() : max, 0);
             
             // Si el glamping no tiene ID, asignarle uno nuevo
             if (!this.id) {
@@ -160,18 +150,21 @@ class Glamping {
             }
             
             // Verificar si el glamping ya existe para actualizarlo
-            const index = glampings.findIndex(g => g.id === this.id);
+            const index = glampings.findIndex(g => g.getId() === this.id);
             
             if (index !== -1) {
                 // Actualizar glamping existente
-                glampings[index] = this.toJSON();
+                glampings[index] = this;
             } else {
                 // Agregar nuevo glamping
-                glampings.push(this.toJSON());
+                glampings.push(this);
             }
             
-            // Guardar el archivo actualizado
-            fs.writeFileSync(rutaArchivo, JSON.stringify(glampings, null, 2), 'utf8');
+            // Convertir los glampings a formato JSON
+            const glampingsJSON = glampings.map(glamping => glamping.toJSON());
+            
+            // Guardar en localStorage
+            localStorage.setItem('glampings', JSON.stringify(glampingsJSON));
             return true;
         } catch (error) {
             console.error('Error al guardar el glamping:', error);
@@ -180,45 +173,29 @@ class Glamping {
     }
 
     /**
-     * Obtiene todos los glampings del archivo glampings.json
+     * Obtiene todos los glampings del almacenamiento local (localStorage)
      * @returns {Array} Array de objetos Glamping
      */
     static obtenerGlampings() {
-        const fs = require('fs');
-        const path = require('path');
-        
         try {
-            // Ruta al archivo JSON de glampings
-            const rutaArchivo = path.join(__dirname, '../data/glampings.json');
+            // Obtener datos del localStorage
+            const glampingsJSON = localStorage.getItem('glampings');
             
-            // Verificar si el archivo existe
-            if (!fs.existsSync(rutaArchivo)) {
-                console.error('El archivo de glampings no existe');
+            if (!glampingsJSON) {
                 return [];
             }
             
-            // Leer el contenido del archivo
-            const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-            
-            // Convertir el contenido a un array de objetos JSON
-            const glampingsJson = JSON.parse(contenido);
-            
-            // Crear un array para almacenar los objetos Glamping
-            const glampings = [];
-            
-            // Recorrer cada objeto JSON y convertirlo a un objeto Glamping
-            for (let i = 0; i < glampingsJson.length; i++) {
-                const glampingJson = glampingsJson[i];
-                const glamping = new Glamping(
-                    glampingJson.id,
-                    glampingJson.nombre,
-                    glampingJson.capacidad,
-                    glampingJson.precioPorNoche,
-                    glampingJson.caracteristicas,
-                    glampingJson.disponible
-                );
-                glampings.push(glamping);
-            }
+            // Convertir datos JSON a objetos Glamping
+            const glampings = JSON.parse(glampingsJSON).map(glampingJSON => 
+                new Glamping(
+                    glampingJSON.id,
+                    glampingJSON.nombre,
+                    glampingJSON.capacidad,
+                    glampingJSON.precioPorNoche,
+                    glampingJSON.caracteristicas,
+                    glampingJSON.disponible
+                )
+            );
             
             return glampings;
         } catch (error) {
@@ -247,6 +224,15 @@ class Glamping {
     }
 
     /**
+     * Obtiene los glampings disponibles
+     * @returns {Array} Array de objetos Glamping disponibles
+     */
+    static obtenerGlampingsDisponibles() {
+        const glampings = Glamping.obtenerGlampings();
+        return glampings.filter(glamping => glamping.isDisponible());
+    }
+
+    /**
      * Crea una instancia de Glamping a partir de un objeto JSON
      * @param {Object} json - Objeto con los datos del glamping
      * @returns {Glamping} Una nueva instancia de Glamping
@@ -261,7 +247,4 @@ class Glamping {
             json.disponible
         );
     }
-}
-
-// Exportamos la clase para poder usarla en otros archivos
-module.exports = Glamping; 
+} 

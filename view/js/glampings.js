@@ -1,360 +1,327 @@
-// Este archivo contiene la lógica para la gestión de glampings
-
-// Esperamos a que el DOM esté completamente cargado
+/**
+ * Script para la gestión de glampings integrado con el controlador
+ */
 document.addEventListener('DOMContentLoaded', function() {
-    // Obtenemos referencias a los elementos del DOM que vamos a utilizar
+    // Elementos del DOM
     const formGlamping = document.getElementById('form-glamping');
-    const tablaGlampings = document.getElementById('tabla-glampings');
-    const btnNuevoGlamping = document.getElementById('btn-nuevo-glamping');
-    const btnCancelar = document.getElementById('btn-cancelar');
-    
-    // Campos del formulario
     const glampingId = document.getElementById('glamping-id');
-    const glampingNombre = document.getElementById('glamping-nombre');
-    const glampingCapacidad = document.getElementById('glamping-capacidad');
-    const glampingPrecio = document.getElementById('glamping-precio');
-    const glampingCaracteristicas = document.getElementById('glamping-caracteristicas');
-    const glampingDisponible = document.getElementById('glamping-disponible');
+    const nombreInput = document.getElementById('nombre');
+    const capacidadInput = document.getElementById('capacidad');
+    const precioPorNocheInput = document.getElementById('precioPorNoche');
+    const caracteristicasInput = document.getElementById('caracteristicas');
+    const disponibleInput = document.getElementById('disponible');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+    const tablaGlampings = document.getElementById('tabla-glampings').querySelector('tbody');
+    const glampingCards = document.getElementById('glamping-cards');
+    const modalDetalles = document.getElementById('modal-detalles');
+    const detallesGlamping = document.getElementById('detalles-glamping');
+    const modalConfirmar = document.getElementById('modal-confirmar');
+    const btnConfirmarEliminar = document.getElementById('btn-confirmar-eliminar');
+    const alertsContainer = document.getElementById('alerts-container');
     
-    // Por defecto, ocultamos el formulario
-    formGlamping.style.display = 'none';
+    let glampingIdEliminar = null;
     
-    // Cargamos los glampings al iniciar la página
+    // Instanciar el controlador de glampings
+    const glampingController = new GlampingController();
+
+    // Cargar glampings al iniciar
     cargarGlampings();
-    
-    // Evento para mostrar el formulario al hacer clic en "Nuevo Glamping"
-    btnNuevoGlamping.addEventListener('click', function() {
-        // Limpiamos el formulario
-        limpiarFormulario();
-        // Mostramos el formulario
-        formGlamping.style.display = 'block';
-    });
-    
-    // Evento para ocultar el formulario al hacer clic en "Cancelar"
-    btnCancelar.addEventListener('click', function() {
-        formGlamping.style.display = 'none';
-    });
-    
-    // Evento para guardar un glamping al enviar el formulario
+
+    // Evento para guardar o actualizar glamping
     formGlamping.addEventListener('submit', function(e) {
-        // Prevenimos el comportamiento por defecto del formulario
         e.preventDefault();
         
-        // Procesamos las características (convertir texto a array)
-        const caracteristicasTexto = glampingCaracteristicas.value;
-        const caracteristicasArray = procesarCaracteristicas(caracteristicasTexto);
-        
-        // Obtenemos los valores del formulario
-        const glamping = {
-            nombre: glampingNombre.value,
-            capacidad: parseInt(glampingCapacidad.value),
-            precioPorNoche: parseInt(glampingPrecio.value),
-            caracteristicas: caracteristicasArray,
-            disponible: glampingDisponible.value === 'true'
+        const datosGlamping = {
+            nombre: nombreInput.value,
+            capacidad: capacidadInput.value,
+            precioPorNoche: precioPorNocheInput.value,
+            caracteristicas: caracteristicasInput.value.split(',').map(c => c.trim()).filter(c => c),
+            disponible: disponibleInput.value === 'true'
         };
         
-        // Si hay un ID, significa que estamos editando un glamping existente
-        if (glampingId.value) {
-            glamping.id = parseInt(glampingId.value);
-            actualizarGlamping(glamping);
-        } else {
-            // Si no hay ID, estamos creando un nuevo glamping
-            crearGlamping(glamping);
-        }
-        
-        // Ocultamos el formulario
-        formGlamping.style.display = 'none';
-    });
-    
-    // Función para procesar las características del textarea a un array
-    function procesarCaracteristicas(texto) {
-        // Dividimos el texto por saltos de línea
-        const lineas = texto.split('\n');
-        
-        // Filtramos líneas vacías y recortamos espacios
-        const caracteristicas = [];
-        for (let i = 0; i < lineas.length; i++) {
-            const linea = lineas[i].trim();
-            if (linea) {
-                caracteristicas.push(linea);
+        try {
+            // Validar datos
+            const errores = glampingController.validar(datosGlamping);
+            if (Object.keys(errores).length > 0) {
+                mostrarErrores(errores);
+                return;
             }
+            
+            if (glampingId.value) {
+                // Actualizar glamping existente
+                const glampingActualizado = glampingController.actualizar(parseInt(glampingId.value), datosGlamping);
+                if (glampingActualizado) {
+                    mostrarAlerta('Glamping actualizado con éxito', 'success');
+                    resetearFormulario();
+                    cargarGlampings();
+                } else {
+                    mostrarAlerta('No se encontró el glamping a actualizar', 'danger');
+                }
+            } else {
+                // Crear nuevo glamping
+                glampingController.crear(datosGlamping);
+                mostrarAlerta('Glamping creado con éxito', 'success');
+                resetearFormulario();
+                cargarGlampings();
+            }
+        } catch (error) {
+            mostrarAlerta('Error: ' + error.message, 'danger');
         }
-        
-        return caracteristicas;
-    }
-    
-    // Función para convertir un array de características a texto para el textarea
-    function caracteristicasATexto(array) {
-        return array.join('\n');
-    }
-    
-    // Función para formatear el precio con separadores de miles
-    function formatearPrecio(precio) {
-        return precio.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
-    }
-    
-    // Función para mostrar las características como etiquetas
-    function mostrarCaracteristicas(caracteristicas) {
-        let html = '<div class="caracteristicas-container">';
-        
-        for (let i = 0; i < caracteristicas.length; i++) {
-            html += `<span class="caracteristica-tag">${caracteristicas[i]}</span>`;
+    });
+
+    // Evento para cancelar edición
+    btnCancelar.addEventListener('click', resetearFormulario);
+
+    // Cerrar modales cuando se hace clic en el botón de cerrar
+    document.querySelectorAll('.close-modal').forEach(button => {
+        button.addEventListener('click', () => {
+            modalDetalles.style.display = 'none';
+            modalConfirmar.style.display = 'none';
+        });
+    });
+
+    // Confirmar eliminación
+    btnConfirmarEliminar.addEventListener('click', function() {
+        if (glampingIdEliminar) {
+            eliminarGlamping(glampingIdEliminar);
+            modalConfirmar.style.display = 'none';
+            glampingIdEliminar = null;
         }
-        
-        html += '</div>';
-        return html;
-    }
-    
-    // Función para cargar los glampings desde el archivo JSON
+    });
+
+    /**
+     * Carga la lista de glampings desde el controlador
+     */
     function cargarGlampings() {
-        // Utilizamos fetch para obtener los datos del archivo JSON
-        fetch('../data/glampings.json')
-            .then(response => {
-                // Verificamos si la respuesta es correcta
-                if (!response.ok) {
-                    throw new Error('Error al cargar los glampings');
-                }
-                return response.json();
-            })
-            .then(glampings => {
-                // Limpiamos la tabla
-                tablaGlampings.innerHTML = '';
-                
-                // Recorremos el array de glampings
-                for (let i = 0; i < glampings.length; i++) {
-                    const glamping = glampings[i];
-                    
-                    // Creamos una fila para cada glamping
-                    const fila = document.createElement('tr');
-                    
-                    // Clase de disponibilidad para aplicar estilos
-                    const disponibilidadClase = glamping.disponible ? 'disponible' : 'no-disponible';
-                    const disponibilidadTexto = glamping.disponible ? 'Disponible' : 'No disponible';
-                    
-                    // Agregamos las celdas con los datos del glamping
-                    fila.innerHTML = `
-                        <td>${glamping.id}</td>
-                        <td>${glamping.nombre}</td>
-                        <td>${glamping.capacidad} personas</td>
-                        <td>${formatearPrecio(glamping.precioPorNoche)}</td>
-                        <td>${mostrarCaracteristicas(glamping.caracteristicas)}</td>
-                        <td class="${disponibilidadClase}">${disponibilidadTexto}</td>
-                        <td>
-                            <button class="btn-editar" data-id="${glamping.id}">Editar</button>
-                            <button class="btn-eliminar" data-id="${glamping.id}">Eliminar</button>
-                        </td>
-                    `;
-                    
-                    // Añadimos la fila a la tabla
-                    tablaGlampings.appendChild(fila);
-                }
-                
-                // Agregamos eventos a los botones de editar y eliminar
-                agregarEventosBotones();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cargar los glampings. Por favor, inténtalo de nuevo.');
-            });
+        const glampings = glampingController.obtenerTodos();
+        renderizarGlampings(glampings);
     }
-    
-    // Función para agregar eventos a los botones de editar y eliminar
-    function agregarEventosBotones() {
-        // Botones de editar
-        const botonesEditar = document.querySelectorAll('.btn-editar');
-        for (let i = 0; i < botonesEditar.length; i++) {
-            botonesEditar[i].addEventListener('click', function() {
+
+    /**
+     * Renderiza la lista de glampings en tarjetas y en la tabla
+     * @param {Array} glampings - Lista de glampings a mostrar
+     */
+    function renderizarGlampings(glampings) {
+        // Limpiar el contenedor de tarjetas y la tabla
+        glampingCards.innerHTML = '';
+        tablaGlampings.innerHTML = '';
+        
+        glampings.forEach(glamping => {
+            // Crear tarjeta
+            const card = document.createElement('div');
+            card.className = 'glamping-card';
+            
+            const disponibleBadge = glamping.isDisponible() ? 
+                '<span class="glamping-badge disponible">Disponible</span>' : 
+                '<span class="glamping-badge no-disponible">No disponible</span>';
+            
+            card.innerHTML = `
+                <div class="glamping-card-header">
+                    <h3>${glamping.getNombre()}</h3>
+                </div>
+                <div class="glamping-card-body">
+                    <p><strong>Capacidad:</strong> ${glamping.getCapacidad()} personas</p>
+                    <p><strong>Precio por noche:</strong> $${glamping.getPrecioPorNoche().toLocaleString()}</p>
+                    <p>${disponibleBadge}</p>
+                </div>
+                <div class="glamping-card-footer">
+                    <button class="btn-detalles" data-id="${glamping.getId()}">Ver detalles</button>
+                    <div>
+                        <button class="btn-editar" data-id="${glamping.getId()}">Editar</button>
+                        <button class="btn-eliminar danger" data-id="${glamping.getId()}">Eliminar</button>
+                    </div>
+                </div>
+            `;
+            
+            glampingCards.appendChild(card);
+            
+            // Crear fila en la tabla
+            const fila = document.createElement('tr');
+            
+            fila.innerHTML = `
+                <td>${glamping.getId()}</td>
+                <td>${glamping.getNombre()}</td>
+                <td>${glamping.getCapacidad()}</td>
+                <td>$${glamping.getPrecioPorNoche().toLocaleString()}</td>
+                <td>${glamping.isDisponible() ? 'Sí' : 'No'}</td>
+                <td class="action-buttons">
+                    <button class="btn-detalles" data-id="${glamping.getId()}">Detalles</button>
+                    <button class="btn-editar" data-id="${glamping.getId()}">Editar</button>
+                    <button class="btn-eliminar danger" data-id="${glamping.getId()}">Eliminar</button>
+                </td>
+            `;
+            
+            tablaGlampings.appendChild(fila);
+        });
+        
+        // Agregar eventos a los botones
+        // Botones de detalles
+        document.querySelectorAll('.btn-detalles').forEach(button => {
+            button.addEventListener('click', function() {
                 const id = parseInt(this.getAttribute('data-id'));
-                editarGlamping(id);
+                mostrarDetalles(id);
             });
-        }
+        });
+        
+        // Botones de editar
+        document.querySelectorAll('.btn-editar').forEach(button => {
+            button.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                cargarGlampingParaEditar(id);
+            });
+        });
         
         // Botones de eliminar
-        const botonesEliminar = document.querySelectorAll('.btn-eliminar');
-        for (let i = 0; i < botonesEliminar.length; i++) {
-            botonesEliminar[i].addEventListener('click', function() {
+        document.querySelectorAll('.btn-eliminar').forEach(button => {
+            button.addEventListener('click', function() {
                 const id = parseInt(this.getAttribute('data-id'));
-                if (confirm('¿Estás seguro de que deseas eliminar este glamping?')) {
-                    eliminarGlamping(id);
-                }
+                confirmarEliminar(id);
             });
+        });
+    }
+
+    /**
+     * Muestra los detalles de un glamping
+     * @param {number} id - ID del glamping
+     */
+    function mostrarDetalles(id) {
+        const glamping = glampingController.buscarPorId(id);
+        
+        if (glamping) {
+            // Obtener las reservas de este glamping
+            const reservaController = new ReservaController();
+            const reservas = reservaController.obtenerReservasGlamping(id);
+            
+            detallesGlamping.innerHTML = `
+                <h3>${glamping.getNombre()}</h3>
+                <p><strong>ID:</strong> ${glamping.getId()}</p>
+                <p><strong>Capacidad:</strong> ${glamping.getCapacidad()} personas</p>
+                <p><strong>Precio por noche:</strong> $${glamping.getPrecioPorNoche().toLocaleString()}</p>
+                <p><strong>Disponible:</strong> ${glamping.isDisponible() ? 'Sí' : 'No'}</p>
+                <h4>Características:</h4>
+                <ul>
+                    ${glamping.getCaracteristicas().map(c => `<li>${c}</li>`).join('')}
+                </ul>
+                <h4>Reservas (${reservas.length})</h4>
+                ${reservas.length > 0 ? 
+                    `<ul>${reservas.map(r => 
+                        `<li>Del ${formatearFecha(r.getFechaInicio())} al ${formatearFecha(r.getFechaFin())} - Estado: ${r.getEstado()}</li>`
+                    ).join('')}</ul>` : 
+                    '<p>No hay reservas para este glamping</p>'}
+            `;
+            
+            modalDetalles.style.display = 'flex';
+        } else {
+            mostrarAlerta('No se encontró el glamping seleccionado', 'danger');
         }
     }
-    
-    // Función para editar un glamping
-    function editarGlamping(id) {
-        // Obtenemos los datos del glamping
-        fetch('../data/glampings.json')
-            .then(response => response.json())
-            .then(glampings => {
-                // Buscamos el glamping por su ID
-                let glampingEncontrado = null;
-                for (let i = 0; i < glampings.length; i++) {
-                    if (glampings[i].id === id) {
-                        glampingEncontrado = glampings[i];
-                        break;
-                    }
-                }
-                
-                if (glampingEncontrado) {
-                    // Rellenamos el formulario con los datos del glamping
-                    glampingId.value = glampingEncontrado.id;
-                    glampingNombre.value = glampingEncontrado.nombre;
-                    glampingCapacidad.value = glampingEncontrado.capacidad;
-                    glampingPrecio.value = glampingEncontrado.precioPorNoche;
-                    glampingCaracteristicas.value = caracteristicasATexto(glampingEncontrado.caracteristicas);
-                    glampingDisponible.value = glampingEncontrado.disponible.toString();
-                    
-                    // Mostramos el formulario
-                    formGlamping.style.display = 'block';
-                } else {
-                    alert('Glamping no encontrado');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos del glamping');
-            });
-    }
-    
-    // Función para crear un nuevo glamping
-    function crearGlamping(glamping) {
-        // En un entorno real, aquí haríamos una solicitud POST a un servidor
-        // Para este ejemplo, simulamos el proceso modificando el archivo JSON local
 
-        // Primero, obtenemos todos los glampings actuales
-        fetch('../data/glampings.json')
-            .then(response => response.json())
-            .then(glampings => {
-                // Generamos un nuevo ID (el máximo + 1)
-                let maxId = 0;
-                for (let i = 0; i < glampings.length; i++) {
-                    if (glampings[i].id > maxId) {
-                        maxId = glampings[i].id;
-                    }
-                }
-                glamping.id = maxId + 1;
-                
-                // Agregamos el nuevo glamping al array
-                glampings.push(glamping);
-                
-                // Simulamos la actualización del archivo (en un entorno real, esto se haría en el servidor)
-                simularGuardadoArchivo(glampings)
-                    .then(() => {
-                        // Recargamos la lista de glampings
-                        cargarGlampings();
-                        alert('Glamping creado correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al crear el glamping');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para crear el glamping');
-            });
+    /**
+     * Carga los datos de un glamping para editar
+     * @param {number} id - ID del glamping a editar
+     */
+    function cargarGlampingParaEditar(id) {
+        const glamping = glampingController.buscarPorId(id);
+        
+        if (glamping) {
+            glampingId.value = glamping.getId();
+            nombreInput.value = glamping.getNombre();
+            capacidadInput.value = glamping.getCapacidad();
+            precioPorNocheInput.value = glamping.getPrecioPorNoche();
+            caracteristicasInput.value = glamping.getCaracteristicas().join(', ');
+            disponibleInput.value = glamping.isDisponible().toString();
+            
+            btnGuardar.textContent = 'Actualizar';
+            btnCancelar.style.display = 'inline-block';
+        } else {
+            mostrarAlerta('No se encontró el glamping seleccionado', 'danger');
+        }
     }
-    
-    // Función para actualizar un glamping existente
-    function actualizarGlamping(glampingActualizado) {
-        // Obtenemos todos los glampings actuales
-        fetch('../data/glampings.json')
-            .then(response => response.json())
-            .then(glampings => {
-                // Buscamos el índice del glamping a actualizar
-                let indice = -1;
-                for (let i = 0; i < glampings.length; i++) {
-                    if (glampings[i].id === glampingActualizado.id) {
-                        indice = i;
-                        break;
-                    }
-                }
-                
-                if (indice !== -1) {
-                    // Actualizamos el glamping en el array
-                    glampings[indice] = glampingActualizado;
-                    
-                    // Simulamos la actualización del archivo
-                    simularGuardadoArchivo(glampings)
-                        .then(() => {
-                            // Recargamos la lista de glampings
-                            cargarGlampings();
-                            alert('Glamping actualizado correctamente');
-                        })
-                        .catch(() => {
-                            alert('Error al actualizar el glamping');
-                        });
-                } else {
-                    alert('Glamping no encontrado');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para actualizar el glamping');
-            });
+
+    /**
+     * Muestra el modal de confirmación para eliminar un glamping
+     * @param {number} id - ID del glamping a eliminar
+     */
+    function confirmarEliminar(id) {
+        // Primero verificar si tiene reservas asociadas
+        const reservaController = new ReservaController();
+        const reservas = reservaController.obtenerReservasGlamping(id);
+        
+        if (reservas.length > 0) {
+            mostrarAlerta(`No se puede eliminar el glamping porque tiene ${reservas.length} reservas asociadas.`, 'danger');
+            return;
+        }
+        
+        glampingIdEliminar = id;
+        modalConfirmar.style.display = 'flex';
     }
-    
-    // Función para eliminar un glamping
+
+    /**
+     * Elimina un glamping
+     * @param {number} id - ID del glamping a eliminar
+     */
     function eliminarGlamping(id) {
-        // Obtenemos todos los glampings actuales
-        fetch('../data/glampings.json')
-            .then(response => response.json())
-            .then(glampings => {
-                // Filtramos el array para eliminar el glamping
-                const glampingsFiltrados = [];
-                for (let i = 0; i < glampings.length; i++) {
-                    if (glampings[i].id !== id) {
-                        glampingsFiltrados.push(glampings[i]);
-                    }
-                }
-                
-                // Simulamos la actualización del archivo
-                simularGuardadoArchivo(glampingsFiltrados)
-                    .then(() => {
-                        // Recargamos la lista de glampings
-                        cargarGlampings();
-                        alert('Glamping eliminado correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al eliminar el glamping');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para eliminar el glamping');
-            });
+        const resultado = glampingController.eliminar(id);
+        
+        if (resultado) {
+            mostrarAlerta('Glamping eliminado con éxito', 'success');
+            cargarGlampings();
+        } else {
+            mostrarAlerta('No se pudo eliminar el glamping', 'danger');
+        }
     }
-    
-    // Función para limpiar el formulario
-    function limpiarFormulario() {
+
+    /**
+     * Resetea el formulario a su estado inicial
+     */
+    function resetearFormulario() {
+        formGlamping.reset();
         glampingId.value = '';
-        glampingNombre.value = '';
-        glampingCapacidad.value = '';
-        glampingPrecio.value = '';
-        glampingCaracteristicas.value = '';
-        glampingDisponible.value = 'true';
+        btnGuardar.textContent = 'Guardar';
+        btnCancelar.style.display = 'none';
+    }
+
+    /**
+     * Muestra los errores de validación
+     * @param {Object} errores - Objeto con los errores
+     */
+    function mostrarErrores(errores) {
+        let mensaje = 'Por favor corrija los siguientes errores:<ul>';
+        
+        for (const campo in errores) {
+            mensaje += `<li>${errores[campo]}</li>`;
+        }
+        
+        mensaje += '</ul>';
+        
+        mostrarAlerta(mensaje, 'danger');
+    }
+
+    /**
+     * Muestra un mensaje de alerta
+     * @param {string} mensaje - Mensaje a mostrar
+     * @param {string} tipo - Tipo de alerta (success, danger, warning)
+     */
+    function mostrarAlerta(mensaje, tipo) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${tipo}`;
+        alert.innerHTML = mensaje;
+        
+        alertsContainer.innerHTML = '';
+        alertsContainer.appendChild(alert);
+        
+        // Auto-ocultar después de 3 segundos
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
     }
     
-    // Función que simula el guardado del archivo JSON
-    // En un entorno real, esto sería una solicitud al servidor
-    function simularGuardadoArchivo(datos) {
-        return new Promise((resolve, reject) => {
-            // Simulamos una operación asíncrona
-            setTimeout(() => {
-                try {
-                    // En un entorno real, aquí se haría una solicitud al servidor
-                    // Para este ejemplo, simplemente mostramos los datos en la consola
-                    console.log('Datos a guardar:', datos);
-                    
-                    // En un entorno de backend real, aquí se escribiría el archivo
-                    // Pero en el navegador no podemos escribir archivos directamente
-                    // Para este ejemplo, asumimos que el guardado fue exitoso
-                    resolve();
-                } catch (error) {
-                    console.error('Error al simular guardado:', error);
-                    reject(error);
-                }
-            }, 500); // Simulamos un retraso de medio segundo
-        });
+    /**
+     * Formatea una fecha en formato YYYY-MM-DD a formato local
+     */
+    function formatearFecha(fechaStr) {
+        const fecha = new Date(fechaStr);
+        return fecha.toLocaleDateString('es-ES');
     }
 }); 

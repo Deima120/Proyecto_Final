@@ -7,8 +7,8 @@ class Cliente {
      * @param {number} id - Identificador único del cliente
      * @param {string} nombre - Nombre completo del cliente
      * @param {string} email - Correo electrónico del cliente
-     * @param {string} telefono - Número telefónico del cliente
-     * @param {string} documento - Número de documento del cliente
+     * @param {string} telefono - Número de teléfono del cliente
+     * @param {string} documento - Número de documento de identidad del cliente
      */
     constructor(id, nombre, email, telefono, documento) {
         this.id = id;
@@ -113,27 +113,17 @@ class Cliente {
     }
 
     /**
-     * Guarda el cliente actual en el archivo clientes.json
+     * Guarda el cliente actual en el almacenamiento local (localStorage)
      * @returns {boolean} true si el cliente se guardó correctamente, false en caso contrario
      */
     guardar() {
-        const fs = require('fs');
-        const path = require('path');
-        
         try {
-            // Ruta al archivo JSON de clientes
-            const rutaArchivo = path.join(__dirname, '../data/clientes.json');
-            
-            // Leer el contenido actual del archivo
-            let clientes = [];
-            if (fs.existsSync(rutaArchivo)) {
-                const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-                clientes = JSON.parse(contenido);
-            }
+            // Leer clientes del localStorage
+            let clientes = Cliente.obtenerClientes();
             
             // Obtener el ID más alto para asignar uno nuevo si es necesario
             const maxId = clientes.reduce((max, cliente) => 
-                cliente.id > max ? cliente.id : max, 0);
+                cliente.getId() > max ? cliente.getId() : max, 0);
             
             // Si el cliente no tiene ID, asignarle uno nuevo
             if (!this.id) {
@@ -141,18 +131,21 @@ class Cliente {
             }
             
             // Verificar si el cliente ya existe para actualizarlo
-            const index = clientes.findIndex(c => c.id === this.id);
+            const index = clientes.findIndex(c => c.getId() === this.id);
             
             if (index !== -1) {
                 // Actualizar cliente existente
-                clientes[index] = this.toJSON();
+                clientes[index] = this;
             } else {
                 // Agregar nuevo cliente
-                clientes.push(this.toJSON());
+                clientes.push(this);
             }
             
-            // Guardar el archivo actualizado
-            fs.writeFileSync(rutaArchivo, JSON.stringify(clientes, null, 2), 'utf8');
+            // Convertir los clientes a formato JSON
+            const clientesJSON = clientes.map(cliente => cliente.toJSON());
+            
+            // Guardar en localStorage
+            localStorage.setItem('clientes', JSON.stringify(clientesJSON));
             return true;
         } catch (error) {
             console.error('Error al guardar el cliente:', error);
@@ -161,50 +154,53 @@ class Cliente {
     }
 
     /**
-     * Obtiene todos los clientes del archivo clientes.json
+     * Obtiene todos los clientes del almacenamiento local (localStorage)
      * @returns {Array} Array de objetos Cliente
      */
     static obtenerClientes() {
-        const fs = require('fs');
-        const path = require('path');
-        
         try {
-            // Ruta al archivo JSON de clientes
-            const rutaArchivo = path.join(__dirname, '../data/clientes.json');
+            // Obtener datos del localStorage
+            const clientesJSON = localStorage.getItem('clientes');
             
-            // Verificar si el archivo existe
-            if (!fs.existsSync(rutaArchivo)) {
-                console.error('El archivo de clientes no existe');
+            if (!clientesJSON) {
                 return [];
             }
             
-            // Leer el contenido del archivo
-            const contenido = fs.readFileSync(rutaArchivo, 'utf8');
-            
-            // Convertir el contenido a un array de objetos JSON
-            const clientesJson = JSON.parse(contenido);
-            
-            // Crear un array para almacenar los objetos Cliente
-            const clientes = [];
-            
-            // Recorrer cada objeto JSON y convertirlo a un objeto Cliente
-            for (let i = 0; i < clientesJson.length; i++) {
-                const clienteJson = clientesJson[i];
-                const cliente = new Cliente(
-                    clienteJson.id,
-                    clienteJson.nombre,
-                    clienteJson.email,
-                    clienteJson.telefono,
-                    clienteJson.documento
-                );
-                clientes.push(cliente);
-            }
+            // Convertir datos JSON a objetos Cliente
+            const clientes = JSON.parse(clientesJSON).map(clienteJSON => 
+                new Cliente(
+                    clienteJSON.id,
+                    clienteJSON.nombre,
+                    clienteJSON.email,
+                    clienteJSON.telefono,
+                    clienteJSON.documento
+                )
+            );
             
             return clientes;
         } catch (error) {
             console.error('Error al obtener los clientes:', error);
             return [];
         }
+    }
+
+    /**
+     * Obtiene un cliente por su ID
+     * @param {number} id - ID del cliente a buscar
+     * @returns {Cliente|null} El cliente encontrado o null si no existe
+     */
+    static obtenerClientePorId(id) {
+        const clientes = Cliente.obtenerClientes();
+        
+        // Recorrer el array de clientes para encontrar el que coincida con el ID
+        for (let i = 0; i < clientes.length; i++) {
+            if (clientes[i].getId() === id) {
+                return clientes[i];
+            }
+        }
+        
+        // Si no se encuentra, retornar null
+        return null;
     }
 
     /**
@@ -221,7 +217,4 @@ class Cliente {
             json.documento
         );
     }
-}
-
-// Exportamos la clase para poder usarla en otros archivos
-module.exports = Cliente; 
+} 

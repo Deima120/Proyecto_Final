@@ -3,70 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Clientes - Sistema de Reservas Glamping</title>
-    <!-- Enlazamos la hoja de estilos -->
-    <link rel="stylesheet" href="css/estilos.css">
+    <title>Gestión de Clientes - Sistema de Glamping</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Cabecera de la página -->
     <header>
-        <h1>Sistema de Reservas Glamping</h1>
+        <h1>Sistema de Gestión de Glamping</h1>
         <nav>
-            <!-- Menú de navegación simple -->
             <ul>
                 <li><a href="index.html">Inicio</a></li>
-                <li><a href="clientes.html" class="activo">Clientes</a></li>
+                <li><a href="clientes.html">Clientes</a></li>
                 <li><a href="glampings.html">Glampings</a></li>
                 <li><a href="reservas.html">Reservas</a></li>
             </ul>
         </nav>
     </header>
-
-    <!-- Contenido principal -->
-    <main>
+    
+    <div class="container">
         <h2>Gestión de Clientes</h2>
-
-        <!-- Sección para añadir o editar clientes -->
-        <section id="formulario-cliente">
-            <h3>Añadir/Editar Cliente</h3>
+        
+        <div id="alerts-container"></div>
+        
+        <div class="form-container">
+            <h3>Nuevo Cliente</h3>
             <form id="form-cliente">
-                <!-- Campo oculto para el ID (se usa en edición) -->
                 <input type="hidden" id="cliente-id">
-
-                <div class="campo-formulario">
-                    <label for="cliente-nombre">Nombre:</label>
-                    <input type="text" id="cliente-nombre" required>
+                
+                <div class="form-group">
+                    <label for="nombre">Nombre completo</label>
+                    <input type="text" id="nombre" name="nombre" required>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="cliente-email">Email:</label>
-                    <input type="email" id="cliente-email" required>
+                
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" required>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="cliente-telefono">Teléfono:</label>
-                    <input type="tel" id="cliente-telefono" required>
+                
+                <div class="form-group">
+                    <label for="telefono">Teléfono</label>
+                    <input type="tel" id="telefono" name="telefono" required>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="cliente-documento">Documento:</label>
-                    <input type="text" id="cliente-documento" required>
+                
+                <div class="form-group">
+                    <label for="documento">Documento</label>
+                    <input type="text" id="documento" name="documento" required>
                 </div>
-
-                <div class="botones-formulario">
-                    <button type="submit" id="btn-guardar">Guardar Cliente</button>
-                    <button type="button" id="btn-cancelar">Cancelar</button>
+                
+                <div class="form-actions">
+                    <button type="submit" id="btn-guardar" class="success">Guardar</button>
+                    <button type="button" id="btn-cancelar" style="display: none;">Cancelar</button>
                 </div>
             </form>
-        </section>
-
-        <!-- Sección para mostrar la lista de clientes -->
-        <section id="lista-clientes">
-            <h3>Lista de Clientes</h3>
-            <button id="btn-nuevo-cliente">Nuevo Cliente</button>
-            
-            <!-- Tabla para mostrar los clientes -->
-            <table>
+        </div>
+        
+        <h3>Lista de Clientes</h3>
+        <div class="table-container">
+            <table id="tabla-clientes">
                 <thead>
                     <tr>
                         <th>ID</th>
@@ -77,19 +69,44 @@
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="tabla-clientes">
-                    <!-- Aquí se cargarán dinámicamente los clientes con JavaScript -->
+                <tbody>
+                    <!-- Los datos de los clientes se cargarán aquí dinámicamente -->
                 </tbody>
             </table>
-        </section>
-    </main>
+        </div>
+    </div>
 
-    <!-- Pie de página -->
+    <!-- Modal de confirmación -->
+    <div class="modal" id="modal-confirmar">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmar eliminación</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar este cliente? Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-confirmar-eliminar" class="danger">Eliminar</button>
+                <button class="close-modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
     <footer>
-        <p>Sistema de Gestión de Reservas Glamping &copy; 2023</p>
+        <div class="container">
+            <p>&copy; 2023 Sistema de Gestión de Glamping. Todos los derechos reservados.</p>
+        </div>
     </footer>
-
-    <!-- Enlazamos el script de JavaScript -->
+    
+    <!-- Inicialización de datos -->
+    <script src="js/init-data.js"></script>
+    
+    <!-- Modelos y Controladores -->
+    <script src="../model/Cliente.js"></script>
+    <script src="../controller/ClienteController.js"></script>
+    
+    <!-- Vista -->
     <script src="js/clientes.js"></script>
 </body>
 </html> 

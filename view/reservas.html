@@ -3,235 +3,217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gestión de Reservas - Sistema de Reservas Glamping</title>
-    <!-- Enlazamos la hoja de estilos -->
-    <link rel="stylesheet" href="css/estilos.css">
-    <!-- Estilos específicos para reservas -->
-    <style>
-        /* Estilo para los campos de fecha */
-        input[type="date"] {
-            width: 100%;
-            padding: 0.5rem;
-            border: 1px solid #ddd;
-            border-radius: 3px;
-        }
-        
-        /* Estilos para los estados de reserva */
-        .estado-confirmada {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 0.3rem 0.6rem;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-        
-        .estado-pendiente {
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 0.3rem 0.6rem;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-        
-        .estado-cancelada {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 0.3rem 0.6rem;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-        
-        /* Estilo para el resumen de la reserva */
-        .resumen-reserva {
-            background-color: #f8f9fa;
-            padding: 1rem;
-            border-radius: 5px;
-            margin-top: 1rem;
-            border: 1px solid #ddd;
-        }
-        
-        .resumen-reserva h4 {
-            margin-bottom: 0.5rem;
-            color: #3498db;
-        }
-        
-        .resumen-reserva p {
-            margin: 0.3rem 0;
-        }
-        
-        /* Estilos para los filtros de búsqueda */
-        .filtros {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
-            flex-wrap: wrap;
-        }
-        
-        .filtro {
-            flex: 1;
-            min-width: 200px;
-        }
-        
-        /* Estilos para mostrar el cliente y glamping en la tabla */
-        .info-detalle {
-            font-size: 0.9rem;
-            color: #666;
-            display: block;
-            margin-top: 0.3rem;
-        }
-    </style>
+    <title>Gestión de Reservas - Sistema de Glamping</title>
+    <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
-    <!-- Cabecera de la página -->
     <header>
-        <h1>Sistema de Reservas Glamping</h1>
+        <h1>Sistema de Gestión de Glamping</h1>
         <nav>
-            <!-- Menú de navegación simple -->
             <ul>
                 <li><a href="index.html">Inicio</a></li>
                 <li><a href="clientes.html">Clientes</a></li>
                 <li><a href="glampings.html">Glampings</a></li>
-                <li><a href="reservas.html" class="activo">Reservas</a></li>
+                <li><a href="reservas.html">Reservas</a></li>
             </ul>
         </nav>
     </header>
-
-    <!-- Contenido principal -->
-    <main>
+    
+    <div class="container">
         <h2>Gestión de Reservas</h2>
-
-        <!-- Sección para filtrar reservas -->
-        <section id="filtros-reserva">
-            <h3>Filtros de Búsqueda</h3>
-            <div class="filtros">
-                <div class="filtro">
-                    <label for="filtro-cliente">Cliente:</label>
-                    <select id="filtro-cliente">
-                        <option value="">Todos los clientes</option>
-                        <!-- Opciones se cargarán desde JavaScript -->
-                    </select>
-                </div>
-                <div class="filtro">
-                    <label for="filtro-glamping">Glamping:</label>
-                    <select id="filtro-glamping">
-                        <option value="">Todos los glampings</option>
-                        <!-- Opciones se cargarán desde JavaScript -->
-                    </select>
-                </div>
-                <div class="filtro">
-                    <label for="filtro-estado">Estado:</label>
-                    <select id="filtro-estado">
-                        <option value="">Todos los estados</option>
-                        <option value="confirmada">Confirmada</option>
-                        <option value="pendiente">Pendiente</option>
-                        <option value="cancelada">Cancelada</option>
-                    </select>
-                </div>
-                <div class="filtro">
-                    <label for="filtro-fecha">Fecha de inicio:</label>
-                    <input type="date" id="filtro-fecha">
-                </div>
-                <div class="filtro">
-                    <button id="btn-aplicar-filtros">Aplicar Filtros</button>
-                    <button id="btn-limpiar-filtros">Limpiar Filtros</button>
-                </div>
-            </div>
-        </section>
-
-        <!-- Sección para añadir o editar reservas -->
-        <section id="formulario-reserva">
-            <h3>Añadir/Editar Reserva</h3>
+        
+        <div id="alerts-container"></div>
+        
+        <div class="form-container">
+            <h3>Nueva Reserva</h3>
             <form id="form-reserva">
-                <!-- Campo oculto para el ID (se usa en edición) -->
                 <input type="hidden" id="reserva-id">
-
-                <div class="campo-formulario">
-                    <label for="reserva-cliente">Cliente:</label>
-                    <select id="reserva-cliente" required>
-                        <option value="">Selecciona un cliente</option>
-                        <!-- Opciones se cargarán desde JavaScript -->
+                
+                <div class="form-group">
+                    <label for="cliente">Cliente</label>
+                    <select id="cliente" name="cliente" required>
+                        <option value="">Seleccione un cliente</option>
+                        <!-- Opciones de clientes se cargarán dinámicamente -->
                     </select>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="reserva-glamping">Glamping:</label>
-                    <select id="reserva-glamping" required>
-                        <option value="">Selecciona un glamping</option>
-                        <!-- Opciones se cargarán desde JavaScript -->
+                
+                <div class="form-group">
+                    <label for="glamping">Glamping</label>
+                    <select id="glamping" name="glamping" required>
+                        <option value="">Seleccione un glamping</option>
+                        <!-- Opciones de glampings se cargarán dinámicamente -->
                     </select>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="reserva-fecha-inicio">Fecha de inicio:</label>
-                    <input type="date" id="reserva-fecha-inicio" required>
+                
+                <div class="form-group">
+                    <label for="fechaInicio">Fecha de inicio</label>
+                    <input type="date" id="fechaInicio" name="fechaInicio" required>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="reserva-fecha-fin">Fecha de fin:</label>
-                    <input type="date" id="reserva-fecha-fin" required>
+                
+                <div class="form-group">
+                    <label for="fechaFin">Fecha de fin</label>
+                    <input type="date" id="fechaFin" name="fechaFin" required>
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="reserva-total">Total pagado:</label>
-                    <input type="number" id="reserva-total" min="0" required>
+                
+                <div class="form-group">
+                    <label for="totalPagado">Total pagado</label>
+                    <input type="number" id="totalPagado" name="totalPagado" min="0">
                 </div>
-
-                <div class="campo-formulario">
-                    <label for="reserva-estado">Estado:</label>
-                    <select id="reserva-estado" required>
-                        <option value="confirmada">Confirmada</option>
+                
+                <div class="form-group">
+                    <label for="estado">Estado</label>
+                    <select id="estado" name="estado">
                         <option value="pendiente">Pendiente</option>
+                        <option value="confirmada">Confirmada</option>
                         <option value="cancelada">Cancelada</option>
                     </select>
                 </div>
-
-                <!-- Resumen de la reserva que se actualiza automáticamente -->
-                <div class="resumen-reserva" id="resumen-reserva">
-                    <h4>Resumen de la Reserva</h4>
-                    <p id="resumen-glamping">Glamping: No seleccionado</p>
-                    <p id="resumen-duracion">Duración: 0 días</p>
-                    <p id="resumen-precio">Precio por noche: $0</p>
-                    <p id="resumen-total">Total estimado: $0</p>
-                </div>
-
-                <div class="botones-formulario">
-                    <button type="submit" id="btn-guardar">Guardar Reserva</button>
-                    <button type="button" id="btn-cancelar">Cancelar</button>
+                
+                <div class="form-actions">
+                    <button type="submit" id="btn-guardar" class="success">Guardar</button>
+                    <button type="button" id="btn-cancelar" style="display: none;">Cancelar</button>
                 </div>
             </form>
-        </section>
-
-        <!-- Sección para mostrar la lista de reservas -->
-        <section id="lista-reservas">
-            <h3>Lista de Reservas</h3>
-            <button id="btn-nueva-reserva">Nueva Reserva</button>
-            
-            <!-- Tabla para mostrar las reservas -->
-            <table>
+        </div>
+        
+        <div class="filter-container">
+            <h3>Filtros</h3>
+            <form id="form-filtros" class="filters">
+                <div class="filter-group">
+                    <label for="filtro-cliente">Cliente</label>
+                    <select id="filtro-cliente">
+                        <option value="">Todos</option>
+                        <!-- Opciones de clientes se cargarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="filtro-glamping">Glamping</label>
+                    <select id="filtro-glamping">
+                        <option value="">Todos</option>
+                        <!-- Opciones de glampings se cargarán dinámicamente -->
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="filtro-estado">Estado</label>
+                    <select id="filtro-estado">
+                        <option value="">Todos</option>
+                        <option value="pendiente">Pendiente</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="cancelada">Cancelada</option>
+                    </select>
+                </div>
+                
+                <div class="filter-actions">
+                    <button type="submit">Filtrar</button>
+                    <button type="reset">Limpiar</button>
+                </div>
+            </form>
+        </div>
+        
+        <h3>Lista de Reservas</h3>
+        <div class="table-container">
+            <table id="tabla-reservas">
                 <thead>
                     <tr>
                         <th>ID</th>
                         <th>Cliente</th>
                         <th>Glamping</th>
-                        <th>Fechas</th>
-                        <th>Total</th>
+                        <th>Fecha inicio</th>
+                        <th>Fecha fin</th>
+                        <th>Total pagado</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
-                <tbody id="tabla-reservas">
-                    <!-- Aquí se cargarán dinámicamente las reservas con JavaScript -->
+                <tbody>
+                    <!-- Los datos de las reservas se cargarán aquí dinámicamente -->
                 </tbody>
             </table>
-        </section>
-    </main>
+        </div>
+        
+        <!-- Vista de calendario (opcional) -->
+        <div class="calendar-container" style="margin-top: 20px;">
+            <h3>Calendario de Reservas</h3>
+            <div class="calendar" id="calendario-reservas">
+                <!-- El calendario se generará dinámicamente -->
+            </div>
+        </div>
+    </div>
 
-    <!-- Pie de página -->
+    <!-- Modal para ver detalles -->
+    <div class="modal" id="modal-detalles">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Detalles de la Reserva</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="detalles-reserva">
+                <!-- Los detalles de la reserva se cargarán aquí dinámicamente -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div class="modal" id="modal-confirmar">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Confirmar eliminación</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar esta reserva? Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-confirmar-eliminar" class="danger">Eliminar</button>
+                <button class="close-modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de cambio de estado -->
+    <div class="modal" id="modal-estado">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Cambiar estado de reserva</h2>
+                <button class="close-modal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="cambio-estado">Nuevo estado</label>
+                    <select id="cambio-estado">
+                        <option value="pendiente">Pendiente</option>
+                        <option value="confirmada">Confirmada</option>
+                        <option value="cancelada">Cancelada</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="btn-confirmar-estado" class="success">Guardar</button>
+                <button class="close-modal">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    
     <footer>
-        <p>Sistema de Gestión de Reservas Glamping &copy; 2023</p>
+        <div class="container">
+            <p>&copy; 2023 Sistema de Gestión de Glamping. Todos los derechos reservados.</p>
+        </div>
     </footer>
-
-    <!-- Enlazamos el script de JavaScript -->
+    
+    <!-- Inicialización de datos -->
+    <script src="js/init-data.js"></script>
+    
+    <!-- Modelos y Controladores -->
+    <script src="../model/Cliente.js"></script>
+    <script src="../model/Glamping.js"></script>
+    <script src="../model/Reserva.js"></script>
+    <script src="../controller/ClienteController.js"></script>
+    <script src="../controller/GlampingController.js"></script>
+    <script src="../controller/ReservaController.js"></script>
+    
+    <!-- Vista -->
     <script src="js/reservas.js"></script>
 </body>
 </html> 

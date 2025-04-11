@@ -1,664 +1,616 @@
-// Este archivo contiene la lógica para la gestión de reservas
-
-// Esperamos a que el DOM esté completamente cargado
+/**
+ * Script para la gestión de reservas integrado con el controlador
+ */
 document.addEventListener('DOMContentLoaded', function() {
-    // Obtenemos referencias a los elementos del DOM que vamos a utilizar
+    // Elementos del DOM
     const formReserva = document.getElementById('form-reserva');
-    const tablaReservas = document.getElementById('tabla-reservas');
-    const btnNuevaReserva = document.getElementById('btn-nueva-reserva');
-    const btnCancelar = document.getElementById('btn-cancelar');
-    const btnAplicarFiltros = document.getElementById('btn-aplicar-filtros');
-    const btnLimpiarFiltros = document.getElementById('btn-limpiar-filtros');
-    
-    // Campos del formulario
     const reservaId = document.getElementById('reserva-id');
-    const reservaCliente = document.getElementById('reserva-cliente');
-    const reservaGlamping = document.getElementById('reserva-glamping');
-    const reservaFechaInicio = document.getElementById('reserva-fecha-inicio');
-    const reservaFechaFin = document.getElementById('reserva-fecha-fin');
-    const reservaTotal = document.getElementById('reserva-total');
-    const reservaEstado = document.getElementById('reserva-estado');
-    
-    // Campos del resumen
-    const resumenGlamping = document.getElementById('resumen-glamping');
-    const resumenDuracion = document.getElementById('resumen-duracion');
-    const resumenPrecio = document.getElementById('resumen-precio');
-    const resumenTotal = document.getElementById('resumen-total');
-    
-    // Campos de filtro
+    const clienteSelect = document.getElementById('cliente');
+    const glampingSelect = document.getElementById('glamping');
+    const fechaInicioInput = document.getElementById('fechaInicio');
+    const fechaFinInput = document.getElementById('fechaFin');
+    const totalPagadoInput = document.getElementById('totalPagado');
+    const estadoSelect = document.getElementById('estado');
+    const btnGuardar = document.getElementById('btn-guardar');
+    const btnCancelar = document.getElementById('btn-cancelar');
+    const tablaReservas = document.getElementById('tabla-reservas').querySelector('tbody');
     const filtroCliente = document.getElementById('filtro-cliente');
     const filtroGlamping = document.getElementById('filtro-glamping');
     const filtroEstado = document.getElementById('filtro-estado');
-    const filtroFecha = document.getElementById('filtro-fecha');
+    const formFiltros = document.getElementById('form-filtros');
+    const calendarioReservas = document.getElementById('calendario-reservas');
+    const modalDetalles = document.getElementById('modal-detalles');
+    const detallesReserva = document.getElementById('detalles-reserva');
+    const modalConfirmar = document.getElementById('modal-confirmar');
+    const btnConfirmarEliminar = document.getElementById('btn-confirmar-eliminar');
+    const modalEstado = document.getElementById('modal-estado');
+    const cambioEstadoSelect = document.getElementById('cambio-estado');
+    const btnConfirmarEstado = document.getElementById('btn-confirmar-estado');
+    const alertsContainer = document.getElementById('alerts-container');
     
-    // Variables para almacenar datos cargados
-    let clientesData = [];
-    let glampingsData = [];
-    let reservasData = [];
+    let reservaIdEliminar = null;
+    let reservaIdCambioEstado = null;
     
-    // Por defecto, ocultamos el formulario
-    formReserva.style.display = 'none';
+    // Instanciar controladores
+    const reservaController = new ReservaController();
+    const clienteController = new ClienteController();
+    const glampingController = new GlampingController();
     
-    // Cargamos los datos necesarios al iniciar la página
-    Promise.all([
-        cargarClientes(),
-        cargarGlampings()
-    ]).then(() => {
-        // Una vez cargados clientes y glampings, cargamos las reservas
+    // Inicializar la aplicación
+    inicializar();
+    
+    function inicializar() {
+        // Cargar datos necesarios
+        cargarClientes();
+        cargarGlampings();
         cargarReservas();
-    });
-    
-    // Evento para mostrar el formulario al hacer clic en "Nueva Reserva"
-    btnNuevaReserva.addEventListener('click', function() {
-        // Limpiamos el formulario
-        limpiarFormulario();
-        // Mostramos el formulario
-        formReserva.style.display = 'block';
-    });
-    
-    // Evento para ocultar el formulario al hacer clic en "Cancelar"
-    btnCancelar.addEventListener('click', function() {
-        formReserva.style.display = 'none';
-    });
-    
-    // Evento para actualizar el resumen de la reserva cuando cambian los datos
-    reservaGlamping.addEventListener('change', actualizarResumen);
-    reservaFechaInicio.addEventListener('change', actualizarResumen);
-    reservaFechaFin.addEventListener('change', actualizarResumen);
-    
-    // Evento para calcular automáticamente el total cuando cambian las fechas
-    reservaFechaFin.addEventListener('change', calcularTotal);
-    
-    // Evento para guardar una reserva al enviar el formulario
-    formReserva.addEventListener('submit', function(e) {
-        // Prevenimos el comportamiento por defecto del formulario
-        e.preventDefault();
         
-        // Obtenemos los valores del formulario
-        const reserva = {
-            clienteId: parseInt(reservaCliente.value),
-            glampingId: parseInt(reservaGlamping.value),
-            fechaInicio: reservaFechaInicio.value,
-            fechaFin: reservaFechaFin.value,
-            totalPagado: parseInt(reservaTotal.value),
-            estado: reservaEstado.value
+        // Configurar eventos
+        configurarEventos();
+        
+        // Inicializar calendario
+        generarCalendario(new Date());
+    }
+    
+    function configurarEventos() {
+        // Evento para crear/actualizar reserva
+        formReserva.addEventListener('submit', function(e) {
+            e.preventDefault();
+            guardarReserva();
+        });
+        
+        // Evento para cancelar edición
+        btnCancelar.addEventListener('click', resetearFormulario);
+        
+        // Eventos para modales
+        document.querySelectorAll('.close-modal').forEach(btn => {
+            btn.addEventListener('click', function() {
+                modalDetalles.style.display = 'none';
+                modalConfirmar.style.display = 'none';
+                modalEstado.style.display = 'none';
+            });
+        });
+        
+        // Confirmar eliminación
+        btnConfirmarEliminar.addEventListener('click', function() {
+            if (reservaIdEliminar) {
+                eliminarReserva(reservaIdEliminar);
+                modalConfirmar.style.display = 'none';
+            }
+        });
+        
+        // Confirmar cambio de estado
+        btnConfirmarEstado.addEventListener('click', function() {
+            if (reservaIdCambioEstado) {
+                cambiarEstadoReserva(reservaIdCambioEstado, cambioEstadoSelect.value);
+                modalEstado.style.display = 'none';
+            }
+        });
+        
+        // Filtros
+        formFiltros.addEventListener('submit', function(e) {
+            e.preventDefault();
+            aplicarFiltros();
+        });
+        
+        formFiltros.addEventListener('reset', function() {
+            setTimeout(() => {
+                cargarReservas();
+            }, 10);
+        });
+        
+        // Calcular total automáticamente al cambiar fechas
+        fechaInicioInput.addEventListener('change', calcularTotalAutomatico);
+        fechaFinInput.addEventListener('change', calcularTotalAutomatico);
+        glampingSelect.addEventListener('change', calcularTotalAutomatico);
+    }
+    
+    function cargarClientes() {
+        // Cargar todos los clientes desde el controlador
+        const clientes = clienteController.obtenerTodos();
+        
+        // Llenar selects de clientes
+        llenarSelect(clienteSelect, clientes, cliente => ({
+            value: cliente.getId(),
+            text: cliente.getNombre()
+        }));
+        
+        llenarSelect(filtroCliente, clientes, cliente => ({
+            value: cliente.getId(),
+            text: cliente.getNombre()
+        }));
+    }
+    
+    function cargarGlampings() {
+        // Cargar todos los glampings disponibles desde el controlador
+        const glampings = glampingController.obtenerDisponibles();
+        
+        // Llenar selects de glampings
+        llenarSelect(glampingSelect, glampings, glamping => ({
+            value: glamping.getId(),
+            text: glamping.getNombre()
+        }));
+        
+        // Para el filtro, incluir todos los glampings, no solo los disponibles
+        const todosGlampings = glampingController.obtenerTodos();
+        llenarSelect(filtroGlamping, todosGlampings, glamping => ({
+            value: glamping.getId(),
+            text: glamping.getNombre()
+        }));
+    }
+    
+    function cargarReservas() {
+        // Cargar todas las reservas desde el controlador
+        const reservas = reservaController.obtenerTodas();
+        renderizarReservas(reservas);
+    }
+    
+    function llenarSelect(select, items, mapperFn) {
+        // Mantener la primera opción (vacía)
+        const primeraOpcion = select.options[0];
+        select.innerHTML = '';
+        select.appendChild(primeraOpcion);
+        
+        // Agregar opciones
+        items.forEach(item => {
+            const { value, text } = mapperFn(item);
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = text;
+            select.appendChild(option);
+        });
+    }
+    
+    function renderizarReservas(reservas) {
+        tablaReservas.innerHTML = '';
+        
+        reservas.forEach(reserva => {
+            const cliente = reserva.getCliente();
+            const glamping = reserva.getGlamping();
+            
+            const fila = document.createElement('tr');
+            
+            // Generar clases de estado para estilos
+            const estadoClass = `estado-${reserva.getEstado()}`;
+            
+            fila.innerHTML = `
+                <td>${reserva.getId()}</td>
+                <td>${cliente ? cliente.getNombre() : 'Cliente no encontrado'}</td>
+                <td>${glamping ? glamping.getNombre() : 'Glamping no encontrado'}</td>
+                <td>${formatearFecha(reserva.getFechaInicio())}</td>
+                <td>${formatearFecha(reserva.getFechaFin())}</td>
+                <td>$${reserva.getTotalPagado().toLocaleString()}</td>
+                <td><span class="estado-badge ${estadoClass}">${reserva.getEstado()}</span></td>
+                <td class="action-buttons">
+                    <button class="btn-detalles" data-id="${reserva.getId()}">Detalles</button>
+                    <button class="btn-editar" data-id="${reserva.getId()}">Editar</button>
+                    <button class="btn-estado" data-id="${reserva.getId()}">Estado</button>
+                    <button class="btn-eliminar danger" data-id="${reserva.getId()}">Eliminar</button>
+                </td>
+            `;
+            
+            tablaReservas.appendChild(fila);
+        });
+        
+        // Agregar eventos a los botones
+        document.querySelectorAll('.btn-detalles').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                mostrarDetalles(id);
+            });
+        });
+        
+        document.querySelectorAll('.btn-editar').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                cargarReservaParaEditar(id);
+            });
+        });
+        
+        document.querySelectorAll('.btn-estado').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                mostrarModalCambioEstado(id);
+            });
+        });
+        
+        document.querySelectorAll('.btn-eliminar').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = parseInt(this.getAttribute('data-id'));
+                confirmarEliminar(id);
+            });
+        });
+        
+        // Actualizar calendario
+        renderizarReservasEnCalendario(reservas);
+    }
+    
+    function mostrarDetalles(id) {
+        const reserva = reservaController.buscarPorId(id);
+        if (!reserva) {
+            mostrarAlerta('No se encontró la reserva seleccionada', 'danger');
+            return;
+        }
+        
+        const cliente = reserva.getCliente();
+        const glamping = reserva.getGlamping();
+        const duracion = reserva.calcularDuracion();
+        const precioTotal = reserva.calcularPrecioTotal();
+        
+        detallesReserva.innerHTML = `
+            <h3>Reserva #${reserva.getId()}</h3>
+            <p><strong>Cliente:</strong> ${cliente ? cliente.getNombre() : 'Cliente no encontrado'}</p>
+            <p><strong>Documento:</strong> ${cliente ? cliente.getDocumento() : 'N/A'}</p>
+            <p><strong>Email:</strong> ${cliente ? cliente.getEmail() : 'N/A'}</p>
+            <p><strong>Teléfono:</strong> ${cliente ? cliente.getTelefono() : 'N/A'}</p>
+            <hr>
+            <p><strong>Glamping:</strong> ${glamping ? glamping.getNombre() : 'Glamping no encontrado'}</p>
+            <p><strong>Capacidad:</strong> ${glamping ? glamping.getCapacidad() + ' personas' : 'N/A'}</p>
+            <p><strong>Precio por noche:</strong> $${glamping ? glamping.getPrecioPorNoche().toLocaleString() : 'N/A'}</p>
+            <hr>
+            <p><strong>Fecha de inicio:</strong> ${formatearFecha(reserva.getFechaInicio())}</p>
+            <p><strong>Fecha de fin:</strong> ${formatearFecha(reserva.getFechaFin())}</p>
+            <p><strong>Duración:</strong> ${duracion} días</p>
+            <p><strong>Precio total calculado:</strong> $${precioTotal.toLocaleString()}</p>
+            <p><strong>Total pagado:</strong> $${reserva.getTotalPagado().toLocaleString()}</p>
+            <p><strong>Estado:</strong> <span class="estado-badge estado-${reserva.getEstado()}">${reserva.getEstado()}</span></p>
+        `;
+        
+        modalDetalles.style.display = 'flex';
+    }
+    
+    function cargarReservaParaEditar(id) {
+        const reserva = reservaController.buscarPorId(id);
+        if (!reserva) {
+            mostrarAlerta('No se encontró la reserva seleccionada', 'danger');
+            return;
+        }
+        
+        reservaId.value = reserva.getId();
+        clienteSelect.value = reserva.getClienteId();
+        glampingSelect.value = reserva.getGlampingId();
+        fechaInicioInput.value = reserva.getFechaInicio();
+        fechaFinInput.value = reserva.getFechaFin();
+        totalPagadoInput.value = reserva.getTotalPagado();
+        estadoSelect.value = reserva.getEstado();
+        
+        btnGuardar.textContent = 'Actualizar';
+        btnCancelar.style.display = 'inline-block';
+        
+        // Desplazar hacia el formulario
+        formReserva.scrollIntoView({ behavior: 'smooth' });
+    }
+    
+    function mostrarModalCambioEstado(id) {
+        const reserva = reservaController.buscarPorId(id);
+        if (!reserva) {
+            mostrarAlerta('No se encontró la reserva seleccionada', 'danger');
+            return;
+        }
+        
+        reservaIdCambioEstado = id;
+        cambioEstadoSelect.value = reserva.getEstado();
+        modalEstado.style.display = 'flex';
+    }
+    
+    function confirmarEliminar(id) {
+        reservaIdEliminar = id;
+        modalConfirmar.style.display = 'flex';
+    }
+    
+    function guardarReserva() {
+        const datosReserva = {
+            clienteId: clienteSelect.value,
+            glampingId: glampingSelect.value,
+            fechaInicio: fechaInicioInput.value,
+            fechaFin: fechaFinInput.value,
+            totalPagado: totalPagadoInput.value,
+            estado: estadoSelect.value
         };
         
-        // Si hay un ID, significa que estamos editando una reserva existente
-        if (reservaId.value) {
-            reserva.id = parseInt(reservaId.value);
-            actualizarReserva(reserva);
-        } else {
-            // Si no hay ID, estamos creando una nueva reserva
-            crearReserva(reserva);
-        }
-        
-        // Ocultamos el formulario
-        formReserva.style.display = 'none';
-    });
-    
-    // Eventos para los filtros
-    btnAplicarFiltros.addEventListener('click', function() {
-        cargarReservas(true); // true indica que estamos aplicando filtros
-    });
-    
-    btnLimpiarFiltros.addEventListener('click', function() {
-        // Limpiamos todos los campos de filtro
-        filtroCliente.value = '';
-        filtroGlamping.value = '';
-        filtroEstado.value = '';
-        filtroFecha.value = '';
-        
-        // Recargamos todas las reservas sin filtros
-        cargarReservas();
-    });
-    
-    // Función para actualizar el resumen de la reserva
-    function actualizarResumen() {
-        // Obtenemos el glamping seleccionado
-        const glampingId = parseInt(reservaGlamping.value);
-        let glamping = null;
-        
-        // Buscamos el glamping en nuestros datos
-        for (let i = 0; i < glampingsData.length; i++) {
-            if (glampingsData[i].id === glampingId) {
-                glamping = glampingsData[i];
-                break;
+        try {
+            // Validar datos
+            const errores = reservaController.validar(datosReserva);
+            if (Object.keys(errores).length > 0) {
+                mostrarErrores(errores);
+                return;
             }
-        }
-        
-        if (glamping) {
-            // Actualizamos la información del glamping en el resumen
-            resumenGlamping.textContent = `Glamping: ${glamping.nombre}`;
-            resumenPrecio.textContent = `Precio por noche: ${formatearPrecio(glamping.precioPorNoche)}`;
             
-            // Calculamos la duración de la estancia
-            const fechaInicio = new Date(reservaFechaInicio.value);
-            const fechaFin = new Date(reservaFechaFin.value);
+            // Verificar disponibilidad si es necesario
+            if (!reservaId.value) {
+                // Es una nueva reserva, verificar disponibilidad
+                if (!reservaController.verificarDisponibilidad(
+                    datosReserva.glampingId, 
+                    datosReserva.fechaInicio, 
+                    datosReserva.fechaFin
+                )) {
+                    mostrarAlerta('El glamping no está disponible para las fechas seleccionadas', 'danger');
+                    return;
+                }
+            }
             
-            if (!isNaN(fechaInicio.getTime()) && !isNaN(fechaFin.getTime())) {
-                // Calculamos la diferencia en días
-                const diferenciaTiempo = fechaFin.getTime() - fechaInicio.getTime();
-                const diferenciaDias = Math.ceil(diferenciaTiempo / (1000 * 3600 * 24));
-                
-                if (diferenciaDias > 0) {
-                    // Actualizamos la duración y el total estimado
-                    resumenDuracion.textContent = `Duración: ${diferenciaDias} días`;
-                    const totalEstimado = diferenciaDias * glamping.precioPorNoche;
-                    resumenTotal.textContent = `Total estimado: ${formatearPrecio(totalEstimado)}`;
-                    
-                    // Actualizamos el campo de total pagado
-                    reservaTotal.value = totalEstimado;
+            if (reservaId.value) {
+                // Actualizar
+                const reservaActualizada = reservaController.actualizar(parseInt(reservaId.value), datosReserva);
+                if (reservaActualizada) {
+                    mostrarAlerta('Reserva actualizada con éxito', 'success');
+                    resetearFormulario();
+                    cargarReservas();
                 } else {
-                    resumenDuracion.textContent = 'Duración: Las fechas no son válidas';
-                    resumenTotal.textContent = 'Total estimado: $0';
+                    mostrarAlerta('No se encontró la reserva a actualizar', 'danger');
                 }
             } else {
-                resumenDuracion.textContent = 'Duración: Selecciona ambas fechas';
-                resumenTotal.textContent = 'Total estimado: $0';
+                // Crear
+                reservaController.crear(datosReserva);
+                mostrarAlerta('Reserva creada con éxito', 'success');
+                resetearFormulario();
+                cargarReservas();
             }
-        } else {
-            // Si no hay glamping seleccionado, mostramos valores por defecto
-            resumenGlamping.textContent = 'Glamping: No seleccionado';
-            resumenDuracion.textContent = 'Duración: 0 días';
-            resumenPrecio.textContent = 'Precio por noche: $0';
-            resumenTotal.textContent = 'Total estimado: $0';
+        } catch (error) {
+            mostrarAlerta('Error: ' + error.message, 'danger');
         }
     }
     
-    // Función para calcular el total automáticamente
-    function calcularTotal() {
-        // Obtenemos el glamping seleccionado
-        const glampingId = parseInt(reservaGlamping.value);
-        let glamping = null;
-        
-        for (let i = 0; i < glampingsData.length; i++) {
-            if (glampingsData[i].id === glampingId) {
-                glamping = glampingsData[i];
-                break;
+    function cambiarEstadoReserva(id, nuevoEstado) {
+        try {
+            const reservaActualizada = reservaController.actualizarEstado(id, nuevoEstado);
+            if (reservaActualizada) {
+                mostrarAlerta('Estado de reserva actualizado con éxito', 'success');
+                cargarReservas();
+            } else {
+                mostrarAlerta('No se encontró la reserva a actualizar', 'danger');
             }
-        }
-        
-        if (glamping) {
-            // Calculamos la duración y el total
-            const fechaInicio = new Date(reservaFechaInicio.value);
-            const fechaFin = new Date(reservaFechaFin.value);
-            
-            if (!isNaN(fechaInicio.getTime()) && !isNaN(fechaFin.getTime())) {
-                const diferenciaTiempo = fechaFin.getTime() - fechaInicio.getTime();
-                const diferenciaDias = Math.ceil(diferenciaTiempo / (1000 * 3600 * 24));
-                
-                if (diferenciaDias > 0) {
-                    const totalEstimado = diferenciaDias * glamping.precioPorNoche;
-                    reservaTotal.value = totalEstimado;
-                }
-            }
+        } catch (error) {
+            mostrarAlerta('Error: ' + error.message, 'danger');
         }
     }
     
-    // Función para formatear el precio con separadores de miles
-    function formatearPrecio(precio) {
-        return precio.toLocaleString('es-CO', { style: 'currency', currency: 'COP' });
-    }
-    
-    // Función para formatear fechas
-    function formatearFecha(fechaString) {
-        const fecha = new Date(fechaString);
-        return fecha.toLocaleDateString('es-ES', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric'
-        });
-    }
-    
-    // Función para cargar los clientes desde el archivo JSON
-    function cargarClientes() {
-        return fetch('../data/clientes.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error al cargar los clientes');
-                }
-                return response.json();
-            })
-            .then(clientes => {
-                clientesData = clientes;
-                
-                // Llenamos los selectores de clientes
-                llenarSelectClientes(reservaCliente, clientes);
-                llenarSelectClientes(filtroCliente, clientes, true);
-                
-                return clientes;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cargar los clientes. Por favor, inténtalo de nuevo.');
-            });
-    }
-    
-    // Función para cargar los glampings desde el archivo JSON
-    function cargarGlampings() {
-        return fetch('../data/glampings.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error al cargar los glampings');
-                }
-                return response.json();
-            })
-            .then(glampings => {
-                glampingsData = glampings;
-                
-                // Llenamos los selectores de glampings
-                llenarSelectGlampings(reservaGlamping, glampings);
-                llenarSelectGlampings(filtroGlamping, glampings, true);
-                
-                return glampings;
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cargar los glampings. Por favor, inténtalo de nuevo.');
-            });
-    }
-    
-    // Función para llenar un select con opciones de clientes
-    function llenarSelectClientes(selectElement, clientes, incluyeVacio = false) {
-        // Limpiamos las opciones existentes (excepto la primera si incluyeVacio es false)
-        if (incluyeVacio) {
-            selectElement.innerHTML = '<option value="">Todos los clientes</option>';
-        } else {
-            selectElement.innerHTML = '<option value="">Selecciona un cliente</option>';
-        }
-        
-        // Agregamos una opción por cada cliente
-        for (let i = 0; i < clientes.length; i++) {
-            const cliente = clientes[i];
-            const option = document.createElement('option');
-            option.value = cliente.id;
-            option.textContent = `${cliente.nombre} (${cliente.documento})`;
-            selectElement.appendChild(option);
-        }
-    }
-    
-    // Función para llenar un select con opciones de glampings
-    function llenarSelectGlampings(selectElement, glampings, incluyeVacio = false) {
-        // Limpiamos las opciones existentes (excepto la primera si incluyeVacio es false)
-        if (incluyeVacio) {
-            selectElement.innerHTML = '<option value="">Todos los glampings</option>';
-        } else {
-            selectElement.innerHTML = '<option value="">Selecciona un glamping</option>';
-        }
-        
-        // Agregamos una opción por cada glamping
-        for (let i = 0; i < glampings.length; i++) {
-            const glamping = glampings[i];
-            // Solo incluimos glampings disponibles para reservas
-            if (selectElement === reservaGlamping && !glamping.disponible) {
-                continue; // Saltamos los glampings no disponibles
-            }
-            const option = document.createElement('option');
-            option.value = glamping.id;
-            option.textContent = `${glamping.nombre} (${glamping.capacidad} personas)`;
-            selectElement.appendChild(option);
-        }
-    }
-    
-    // Función para cargar las reservas desde el archivo JSON (con filtros opcionales)
-    function cargarReservas(aplicarFiltros = false) {
-        fetch('../data/reservas.json')
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Error al cargar las reservas');
-                }
-                return response.json();
-            })
-            .then(reservas => {
-                reservasData = reservas;
-                
-                // Aplicamos filtros si es necesario
-                if (aplicarFiltros) {
-                    reservas = filtrarReservas(reservas);
-                }
-                
-                // Limpiamos la tabla
-                tablaReservas.innerHTML = '';
-                
-                // Recorremos el array de reservas
-                for (let i = 0; i < reservas.length; i++) {
-                    const reserva = reservas[i];
-                    
-                    // Buscamos los datos del cliente y glamping
-                    const cliente = buscarCliente(reserva.clienteId);
-                    const glamping = buscarGlamping(reserva.glampingId);
-                    
-                    // Si no encontramos el cliente o glamping, continuamos con la siguiente reserva
-                    if (!cliente || !glamping) continue;
-                    
-                    // Clase para el estado
-                    const estadoClase = `estado-${reserva.estado}`;
-                    
-                    // Creamos una fila para cada reserva
-                    const fila = document.createElement('tr');
-                    
-                    // Fechas formateadas
-                    const fechaInicio = formatearFecha(reserva.fechaInicio);
-                    const fechaFin = formatearFecha(reserva.fechaFin);
-                    
-                    // Agregamos las celdas con los datos de la reserva
-                    fila.innerHTML = `
-                        <td>${reserva.id}</td>
-                        <td>
-                            ${cliente.nombre}
-                            <span class="info-detalle">${cliente.documento}</span>
-                        </td>
-                        <td>
-                            ${glamping.nombre}
-                            <span class="info-detalle">${glamping.capacidad} personas</span>
-                        </td>
-                        <td>
-                            Del ${fechaInicio} al ${fechaFin}
-                        </td>
-                        <td>${formatearPrecio(reserva.totalPagado)}</td>
-                        <td><span class="${estadoClase}">${capitalizar(reserva.estado)}</span></td>
-                        <td>
-                            <button class="btn-editar" data-id="${reserva.id}">Editar</button>
-                            <button class="btn-eliminar" data-id="${reserva.id}">Eliminar</button>
-                        </td>
-                    `;
-                    
-                    // Añadimos la fila a la tabla
-                    tablaReservas.appendChild(fila);
-                }
-                
-                // Agregamos eventos a los botones de editar y eliminar
-                agregarEventosBotones();
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al cargar las reservas. Por favor, inténtalo de nuevo.');
-            });
-    }
-    
-    // Función para filtrar reservas según los criterios seleccionados
-    function filtrarReservas(reservas) {
-        const clienteId = filtroCliente.value ? parseInt(filtroCliente.value) : null;
-        const glampingId = filtroGlamping.value ? parseInt(filtroGlamping.value) : null;
-        const estado = filtroEstado.value;
-        const fecha = filtroFecha.value;
-        
-        // Filtramos las reservas que cumplen con todos los criterios seleccionados
-        return reservas.filter(reserva => {
-            // Filtro por cliente
-            if (clienteId && reserva.clienteId !== clienteId) {
-                return false;
-            }
-            
-            // Filtro por glamping
-            if (glampingId && reserva.glampingId !== glampingId) {
-                return false;
-            }
-            
-            // Filtro por estado
-            if (estado && reserva.estado !== estado) {
-                return false;
-            }
-            
-            // Filtro por fecha
-            if (fecha) {
-                // Comparamos si la fecha de inicio de la reserva es mayor o igual que la fecha seleccionada
-                if (reserva.fechaInicio < fecha) {
-                    return false;
-                }
-            }
-            
-            // Si pasa todos los filtros, incluimos la reserva
-            return true;
-        });
-    }
-    
-    // Función para buscar un cliente por su ID
-    function buscarCliente(id) {
-        for (let i = 0; i < clientesData.length; i++) {
-            if (clientesData[i].id === id) {
-                return clientesData[i];
-            }
-        }
-        return null;
-    }
-    
-    // Función para buscar un glamping por su ID
-    function buscarGlamping(id) {
-        for (let i = 0; i < glampingsData.length; i++) {
-            if (glampingsData[i].id === id) {
-                return glampingsData[i];
-            }
-        }
-        return null;
-    }
-    
-    // Función para capitalizar la primera letra de un texto
-    function capitalizar(texto) {
-        return texto.charAt(0).toUpperCase() + texto.slice(1);
-    }
-    
-    // Función para agregar eventos a los botones de editar y eliminar
-    function agregarEventosBotones() {
-        // Botones de editar
-        const botonesEditar = document.querySelectorAll('.btn-editar');
-        for (let i = 0; i < botonesEditar.length; i++) {
-            botonesEditar[i].addEventListener('click', function() {
-                const id = parseInt(this.getAttribute('data-id'));
-                editarReserva(id);
-            });
-        }
-        
-        // Botones de eliminar
-        const botonesEliminar = document.querySelectorAll('.btn-eliminar');
-        for (let i = 0; i < botonesEliminar.length; i++) {
-            botonesEliminar[i].addEventListener('click', function() {
-                const id = parseInt(this.getAttribute('data-id'));
-                if (confirm('¿Estás seguro de que deseas eliminar esta reserva?')) {
-                    eliminarReserva(id);
-                }
-            });
-        }
-    }
-    
-    // Función para editar una reserva
-    function editarReserva(id) {
-        // Buscamos la reserva en nuestros datos
-        let reservaEncontrada = null;
-        for (let i = 0; i < reservasData.length; i++) {
-            if (reservasData[i].id === id) {
-                reservaEncontrada = reservasData[i];
-                break;
-            }
-        }
-        
-        if (reservaEncontrada) {
-            // Rellenamos el formulario con los datos de la reserva
-            reservaId.value = reservaEncontrada.id;
-            reservaCliente.value = reservaEncontrada.clienteId;
-            reservaGlamping.value = reservaEncontrada.glampingId;
-            reservaFechaInicio.value = reservaEncontrada.fechaInicio;
-            reservaFechaFin.value = reservaEncontrada.fechaFin;
-            reservaTotal.value = reservaEncontrada.totalPagado;
-            reservaEstado.value = reservaEncontrada.estado;
-            
-            // Actualizamos el resumen
-            actualizarResumen();
-            
-            // Mostramos el formulario
-            formReserva.style.display = 'block';
-        } else {
-            alert('Reserva no encontrada');
-        }
-    }
-    
-    // Función para crear una nueva reserva
-    function crearReserva(reserva) {
-        // En un entorno real, aquí haríamos una solicitud POST a un servidor
-        // Para este ejemplo, simulamos el proceso modificando el archivo JSON local
-
-        // Primero, obtenemos todas las reservas actuales
-        fetch('../data/reservas.json')
-            .then(response => response.json())
-            .then(reservas => {
-                // Generamos un nuevo ID (el máximo + 1)
-                let maxId = 0;
-                for (let i = 0; i < reservas.length; i++) {
-                    if (reservas[i].id > maxId) {
-                        maxId = reservas[i].id;
-                    }
-                }
-                reserva.id = maxId + 1;
-                
-                // Agregamos la nueva reserva al array
-                reservas.push(reserva);
-                
-                // Simulamos la actualización del archivo (en un entorno real, esto se haría en el servidor)
-                simularGuardadoArchivo(reservas)
-                    .then(() => {
-                        // Recargamos la lista de reservas
-                        cargarReservas();
-                        alert('Reserva creada correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al crear la reserva');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para crear la reserva');
-            });
-    }
-    
-    // Función para actualizar una reserva existente
-    function actualizarReserva(reservaActualizada) {
-        // Obtenemos todas las reservas actuales
-        fetch('../data/reservas.json')
-            .then(response => response.json())
-            .then(reservas => {
-                // Buscamos el índice de la reserva a actualizar
-                let indice = -1;
-                for (let i = 0; i < reservas.length; i++) {
-                    if (reservas[i].id === reservaActualizada.id) {
-                        indice = i;
-                        break;
-                    }
-                }
-                
-                if (indice !== -1) {
-                    // Actualizamos la reserva en el array
-                    reservas[indice] = reservaActualizada;
-                    
-                    // Simulamos la actualización del archivo
-                    simularGuardadoArchivo(reservas)
-                        .then(() => {
-                            // Recargamos la lista de reservas
-                            cargarReservas();
-                            alert('Reserva actualizada correctamente');
-                        })
-                        .catch(() => {
-                            alert('Error al actualizar la reserva');
-                        });
-                } else {
-                    alert('Reserva no encontrada');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para actualizar la reserva');
-            });
-    }
-    
-    // Función para eliminar una reserva
     function eliminarReserva(id) {
-        // Obtenemos todas las reservas actuales
-        fetch('../data/reservas.json')
-            .then(response => response.json())
-            .then(reservas => {
-                // Filtramos el array para eliminar la reserva
-                const reservasFiltradas = [];
-                for (let i = 0; i < reservas.length; i++) {
-                    if (reservas[i].id !== id) {
-                        reservasFiltradas.push(reservas[i]);
-                    }
+        const resultado = reservaController.eliminar(id);
+        
+        if (resultado) {
+            mostrarAlerta('Reserva eliminada con éxito', 'success');
+            cargarReservas();
+        } else {
+            mostrarAlerta('No se pudo eliminar la reserva', 'danger');
+        }
+        
+        reservaIdEliminar = null;
+    }
+    
+    function aplicarFiltros() {
+        let reservasFiltradas = reservaController.obtenerTodas();
+        
+        // Filtrar por cliente
+        if (filtroCliente.value) {
+            const clienteId = parseInt(filtroCliente.value);
+            reservasFiltradas = reservaController.obtenerReservasCliente(clienteId);
+        }
+        
+        // Filtrar por glamping
+        if (filtroGlamping.value) {
+            const glampingId = parseInt(filtroGlamping.value);
+            reservasFiltradas = reservaController.obtenerReservasGlamping(glampingId);
+        }
+        
+        // Filtrar por estado
+        if (filtroEstado.value) {
+            reservasFiltradas = reservaController.obtenerReservasPorEstado(filtroEstado.value);
+        }
+        
+        renderizarReservas(reservasFiltradas);
+    }
+    
+    function generarCalendario(fecha) {
+        calendarioReservas.innerHTML = '';
+        
+        const año = fecha.getFullYear();
+        const mes = fecha.getMonth();
+        
+        const nombresMeses = [
+            'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+            'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'
+        ];
+        
+        const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+        
+        // Cabecera del calendario
+        const header = document.createElement('div');
+        header.className = 'calendar-header';
+        header.innerHTML = `
+            <h4>${nombresMeses[mes]} ${año}</h4>
+            <div class="calendar-controls">
+                <button id="prev-month">&lt;</button>
+                <button id="today">Hoy</button>
+                <button id="next-month">&gt;</button>
+            </div>
+        `;
+        calendarioReservas.appendChild(header);
+        
+        // Control de navegación
+        document.getElementById('prev-month').addEventListener('click', () => {
+            const nuevaFecha = new Date(año, mes - 1, 1);
+            generarCalendario(nuevaFecha);
+        });
+        
+        document.getElementById('next-month').addEventListener('click', () => {
+            const nuevaFecha = new Date(año, mes + 1, 1);
+            generarCalendario(nuevaFecha);
+        });
+        
+        document.getElementById('today').addEventListener('click', () => {
+            generarCalendario(new Date());
+        });
+        
+        // Días de la semana
+        const weekDays = document.createElement('div');
+        weekDays.className = 'calendar-weekdays';
+        
+        diasSemana.forEach(dia => {
+            const weekday = document.createElement('div');
+            weekday.className = 'weekday';
+            weekday.textContent = dia;
+            weekDays.appendChild(weekday);
+        });
+        
+        calendarioReservas.appendChild(weekDays);
+        
+        // Primer día del mes
+        const primerDia = new Date(año, mes, 1);
+        const ultimoDia = new Date(año, mes + 1, 0);
+        
+        // Días del mes anterior para rellenar la primera semana
+        const primerDiaSemana = primerDia.getDay();
+        const diasMesAnterior = primerDiaSemana;
+        
+        // Días del mes actual
+        const diasMes = ultimoDia.getDate();
+        
+        // Total de días a mostrar
+        const totalDias = diasMesAnterior + diasMes;
+        const totalSemanas = Math.ceil(totalDias / 7);
+        
+        // Generar los días
+        let fecha_actual = new Date(año, mes, 1 - diasMesAnterior);
+        
+        for (let i = 0; i < totalSemanas * 7; i++) {
+            const esOtroMes = fecha_actual.getMonth() !== mes;
+            const esHoy = esMismaFecha(fecha_actual, new Date());
+            
+            const day = document.createElement('div');
+            day.className = `calendar-day${esOtroMes ? ' other-month' : ''}${esHoy ? ' today' : ''}`;
+            day.setAttribute('data-date', formatoFechaISO(fecha_actual));
+            
+            day.innerHTML = `<div class="day-number" data-weekday="${diasSemana[fecha_actual.getDay()]}">${fecha_actual.getDate()}</div>`;
+            
+            calendarioReservas.appendChild(day);
+            
+            fecha_actual.setDate(fecha_actual.getDate() + 1);
+        }
+        
+        // Mostrar reservas en el calendario
+        renderizarReservasEnCalendario(reservaController.obtenerTodas());
+    }
+    
+    function renderizarReservasEnCalendario(reservas) {
+        // Limpiar reservas anteriores
+        document.querySelectorAll('.calendar-day .reservation').forEach(el => el.remove());
+        
+        // Restaurar clases
+        document.querySelectorAll('.calendar-day.reserved').forEach(el => {
+            el.classList.remove('reserved');
+        });
+        
+        // Añadir reservas al calendario
+        reservas.forEach(reserva => {
+            const fechaInicio = new Date(reserva.getFechaInicio());
+            const fechaFin = new Date(reserva.getFechaFin());
+            
+            const cliente = reserva.getCliente();
+            const glamping = reserva.getGlamping();
+            
+            // Iterar cada día de la reserva
+            const fechaActual = new Date(fechaInicio);
+            while (fechaActual <= fechaFin) {
+                const fechaISO = formatoFechaISO(fechaActual);
+                const diaElement = document.querySelector(`.calendar-day[data-date="${fechaISO}"]`);
+                
+                if (diaElement) {
+                    // Marcar como día reservado
+                    diaElement.classList.add('reserved');
+                    
+                    // Añadir información de la reserva
+                    const resInfo = document.createElement('div');
+                    resInfo.className = `reservation estado-${reserva.getEstado()}`;
+                    resInfo.textContent = `${cliente ? cliente.getNombre() : 'Cliente'} - ${glamping ? glamping.getNombre() : 'Glamping'}`;
+                    resInfo.setAttribute('data-id', reserva.getId());
+                    
+                    resInfo.addEventListener('click', () => {
+                        mostrarDetalles(reserva.getId());
+                    });
+                    
+                    diaElement.appendChild(resInfo);
                 }
                 
-                // Simulamos la actualización del archivo
-                simularGuardadoArchivo(reservasFiltradas)
-                    .then(() => {
-                        // Recargamos la lista de reservas
-                        cargarReservas();
-                        alert('Reserva eliminada correctamente');
-                    })
-                    .catch(() => {
-                        alert('Error al eliminar la reserva');
-                    });
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('Error al obtener los datos para eliminar la reserva');
-            });
-    }
-    
-    // Función para limpiar el formulario
-    function limpiarFormulario() {
-        reservaId.value = '';
-        reservaCliente.value = '';
-        reservaGlamping.value = '';
-        reservaFechaInicio.value = '';
-        reservaFechaFin.value = '';
-        reservaTotal.value = '';
-        reservaEstado.value = 'confirmada'; // Valor por defecto
-        
-        // Limpiamos también el resumen
-        resumenGlamping.textContent = 'Glamping: No seleccionado';
-        resumenDuracion.textContent = 'Duración: 0 días';
-        resumenPrecio.textContent = 'Precio por noche: $0';
-        resumenTotal.textContent = 'Total estimado: $0';
-    }
-    
-    // Función que simula el guardado del archivo JSON
-    // En un entorno real, esto sería una solicitud al servidor
-    function simularGuardadoArchivo(datos) {
-        return new Promise((resolve, reject) => {
-            // Simulamos una operación asíncrona
-            setTimeout(() => {
-                try {
-                    // En un entorno real, aquí se haría una solicitud al servidor
-                    // Para este ejemplo, simplemente mostramos los datos en la consola
-                    console.log('Datos a guardar:', datos);
-                    
-                    // En un entorno de backend real, aquí se escribiría el archivo
-                    // Pero en el navegador no podemos escribir archivos directamente
-                    // Para este ejemplo, asumimos que el guardado fue exitoso
-                    resolve();
-                } catch (error) {
-                    console.error('Error al simular guardado:', error);
-                    reject(error);
-                }
-            }, 500); // Simulamos un retraso de medio segundo
+                // Avanzar al siguiente día
+                fechaActual.setDate(fechaActual.getDate() + 1);
+            }
         });
     }
     
-    // Función auxiliar para calcular la duración en días entre dos fechas
-    function calcularDuracionEnDias(fechaInicio, fechaFin) {
+    function calcularTotalAutomatico() {
+        if (fechaInicioInput.value && fechaFinInput.value && glampingSelect.value) {
+            const inicio = new Date(fechaInicioInput.value);
+            const fin = new Date(fechaFinInput.value);
+            
+            if (isNaN(inicio.getTime()) || isNaN(fin.getTime()) || fin <= inicio) {
+                return;
+            }
+            
+            const glampingId = parseInt(glampingSelect.value);
+            const glamping = glampingController.buscarPorId(glampingId);
+            
+            if (glamping) {
+                const duracion = calcularDuracion(fechaInicioInput.value, fechaFinInput.value);
+                const total = duracion * glamping.getPrecioPorNoche();
+                totalPagadoInput.value = total;
+            }
+        }
+    }
+    
+    function mostrarErrores(errores) {
+        let mensaje = 'Por favor corrija los siguientes errores:<ul>';
+        
+        for (const campo in errores) {
+            mensaje += `<li>${errores[campo]}</li>`;
+        }
+        
+        mensaje += '</ul>';
+        
+        mostrarAlerta(mensaje, 'danger');
+    }
+    
+    function resetearFormulario() {
+        formReserva.reset();
+        reservaId.value = '';
+        btnGuardar.textContent = 'Guardar';
+        btnCancelar.style.display = 'none';
+    }
+    
+    function mostrarAlerta(mensaje, tipo) {
+        const alert = document.createElement('div');
+        alert.className = `alert alert-${tipo}`;
+        alert.innerHTML = mensaje;
+        
+        alertsContainer.innerHTML = '';
+        alertsContainer.appendChild(alert);
+        
+        // Auto-ocultar después de 3 segundos
+        setTimeout(() => {
+            alert.remove();
+        }, 3000);
+    }
+    
+    // Funciones auxiliares
+    function formatearFecha(fechaStr) {
+        const fecha = new Date(fechaStr);
+        return fecha.toLocaleDateString('es-ES');
+    }
+    
+    function formatoFechaISO(fecha) {
+        return fecha.toISOString().split('T')[0];
+    }
+    
+    function calcularDuracion(fechaInicio, fechaFin) {
         const inicio = new Date(fechaInicio);
         const fin = new Date(fechaFin);
         const diferenciaTiempo = fin.getTime() - inicio.getTime();
         return Math.ceil(diferenciaTiempo / (1000 * 3600 * 24));
     }
     
-    // Configuramos valores mínimos para las fechas (no permitir fechas pasadas)
-    const hoy = new Date().toISOString().split('T')[0];
-    reservaFechaInicio.min = hoy;
-    reservaFechaInicio.addEventListener('change', function() {
-        // La fecha de fin debe ser posterior a la fecha de inicio
-        reservaFechaFin.min = reservaFechaInicio.value;
-        // Si la fecha de fin es anterior a la nueva fecha de inicio, la ajustamos
-        if (reservaFechaFin.value && reservaFechaFin.value < reservaFechaInicio.value) {
-            reservaFechaFin.value = reservaFechaInicio.value;
-        }
-        actualizarResumen();
-    });
-});
+    function esMismaFecha(fecha1, fecha2) {
+        return fecha1.getFullYear() === fecha2.getFullYear() &&
+               fecha1.getMonth() === fecha2.getMonth() &&
+               fecha1.getDate() === fecha2.getDate();
+    }
+}); 
